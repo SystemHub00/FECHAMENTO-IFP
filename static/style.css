@@ -1,0 +1,580 @@
+input#nome,
+input#cpf,
+input#nascimento,
+input#whatsapp,
+input#email,
+select#genero,
+input#cep,
+input#endereco,
+input#numero,
+input#complemento,
+input#bairro,
+input#cidade,
+select#estado,
+select#local,
+select#curso,
+select#turma,
+input#horario,
+input#data_inicio,
+input#encerramento,
+input#como_conheceu,
+textarea,
+button#proximo,
+button#voltar,
+button#finalizar,
+button#editar,
+button#enviar,
+button.btn-proximo,
+button.btn-voltar,
+button.btn-finalizar,
+button.btn-editar,
+button.btn-enviar {
+    width: 89% !important;
+    min-width: 180px !important;
+    max-width: 490px !important;
+    margin: 0 auto 8px auto !important;
+    display: block;
+    box-sizing: border-box;
+}
+/* Select estilizado para inputs bonitos */
+select {
+    background: #f3f0fa;
+    color: #351c75;
+    border: 1.5px solid #b3a0d7;
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 1.08em;
+    font-family: 'Wise', Arial, sans-serif;
+    transition: border 0.2s, box-shadow 0.2s;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-shadow: 0 2px 8px rgba(53,28,117,0.08);
+    margin-bottom: 8px;
+    background-image: url('data:image/svg+xml;utf8,<svg fill="%23351c75" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 18px center;
+    background-size: 24px 24px;
+}
+select:focus {
+    border: 2px solid #351c75;
+    box-shadow: 0 4px 16px rgba(53,28,117,0.12);
+}
+.cta-btn {
+    animation: pulse-scale 1s infinite alternate;
+}
+
+@keyframes pulse-scale {
+    0% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1.08);
+    }
+}
+@media (max-width: 600px) {
+    .btns {
+        flex-direction: column !important;
+        gap: 10px !important;
+        width: 100%;
+        align-items: stretch;
+    }
+    .btn-whatsapp, .btn-inicio {
+        width: 100% !important;
+        min-width: unset !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+        display: block;
+        text-align: center;
+        font-size: 1em;
+        padding: 16px 0;
+    }
+}
+@media (max-width: 600px) {
+    .endereco-container input,
+    .endereco-container select {
+        width: 100% !important;
+        min-width: unset !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+        font-size: 1em;
+    }
+}
+@media (max-width: 600px) {
+    input[type="date"] {
+        width: 100% !important;
+        min-width: unset !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+        font-size: 1em;
+    }
+}
+@media (max-width: 600px) {
+    .cta-btn {
+        width: 100% !important;
+        min-width: unset !important;
+        max-width: 100vw !important;
+        box-sizing: border-box;
+        display: block;
+        text-align: center;
+        animation: pulse-scale 1s infinite alternate;
+        will-change: transform;
+    }
+    .cta-btn:active, .cta-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px #351c7533;
+    }
+    .cta-btn {
+        overflow: hidden;
+    }
+    .cta-btn-container, .cta-btn-parent, div[style*="text-align:center"] {
+        overflow-x: hidden !important;
+        width: 100vw !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+}
+/* INPUTS E SELECTS SEMPRE PRETO */
+input, select {
+    color: #222 !important;
+
+}
+
+/* IMPORTANTE! garante que o layout respeite a largura do celular */
+@media (max-width: 640px) {
+    html,
+    body {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    body * {
+        min-width: 0;
+    }
+
+    img,
+    svg,
+    iframe,
+    video,
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    div,
+    section,
+    article,
+    form,
+    input,
+    select,
+    textarea,
+    button,
+    a {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+}
+/* Placeholder dos inputs sempre preto */
+input::placeholder {
+    color: #222 !important;
+    opacity: 1;
+}
+input::-webkit-input-placeholder {
+    color: #222 !important;
+}
+input:-ms-input-placeholder {
+    color: #222 !important;
+}
+input::-ms-input-placeholder {
+    color: #222 !important;
+}
+/* RESPONSIVIDADE GLOBAL */
+@media (max-width: 600px) {
+    html, body {
+        font-size: 15px;
+        padding: 0;
+        margin: 0;
+        overflow-x: hidden;
+    }
+    body {
+        font-size: 1em;
+        padding: 0;
+        margin: 0;
+    }
+    .main-header {
+        padding: 8px 0 0 0;
+    }
+    .header-logos {
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+    }
+    .main-header .logo, .logo-prefeitura-topo {
+        max-width: 90vw;
+        height: auto;
+    }
+    header nav ul {
+        flex-direction: column;
+        gap: 8px;
+        font-size: 1em;
+        margin: 0;
+        padding: 0;
+    }
+    .hero-section {
+        padding: 12px 2vw 8px 2vw;
+        border-radius: 0 0 14px 14px;
+    }
+    .hero-section h1 {
+        font-size: 1.1em;
+        word-break: break-word;
+    }
+    .hero-section .benefits {
+        flex-direction: column;
+        gap: 8px;
+    }
+    main {
+        max-width: 100vw;
+        padding: 4px;
+        box-shadow: none;
+        border-radius: 0;
+        margin: 0;
+    }
+    .ganhos-box, .cursos-section, .contato-section {
+        padding: 8px 2vw;
+        margin: 8px 0;
+        border-radius: 8px;
+    }
+    .ganhos-box h2, .cursos-title, .cursos-destaque {
+        font-size: 1em;
+    }
+    .cta-btn {
+        width: 100%;
+        min-width: unset;
+        padding: 10px 0;
+        font-size: 1em;
+        border-radius: 18px;
+    }
+    .form-group input, .form-group select, .inscricao-container input, .inscricao-container select {
+        min-width: 0;
+        max-width: 100%;
+        font-size: 1em;
+        padding: 8px 8px;
+        border-radius: 10px;
+    }
+    .form-btns, .btns {
+        flex-direction: column !important;
+        gap: 8px !important;
+        width: 100%;
+        align-items: stretch;
+    }
+    .btn-proximo, .btn-voltar, .btn-finalizar, .btn-whatsapp, .btn-inicio {
+        min-width: unset;
+        width: 100%;
+        padding: 10px 0;
+        font-size: 1em;
+        border-radius: 16px;
+    }
+    .protocolo-box, .proximos-passos, .info-box, .confirmacao-box {
+        padding: 8px 2vw;
+        font-size: 1em;
+        border-radius: 8px;
+    }
+    .sucesso-container, .inscricao-container, .endereco-container, .curso-container, .revisao-container {
+        max-width: 99vw;
+        padding: 8px 2vw 8px 2vw !important;
+        border-radius: 10px;
+        margin: 8px auto 0 auto;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    img, .logo, .logo-prefeitura-topo {
+        max-width: 95vw !important;
+        height: auto !important;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    footer {
+        font-size: 0.95em;
+        padding: 8px 0;
+    }
+}
+body {
+    font-family: 'Wise', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(120deg, #fff 60%, #b3a0d7 100%);
+    color: #351c75;
+    font-smooth: always;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+.main-header {
+    background: #fff;
+    border-bottom: 4px solid #de254b;
+    padding: 24px 0 0 0;
+    text-align: center;
+    box-shadow: 0 4px 24px 0 rgba(53,28,117,0.07);
+}
+/* Ajuste das logos lado a lado e responsivas */
+.header-logos {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 10px;
+    width: 100%;
+}
+/* Logo Rio+Elas padrão */
+.main-header .logo {
+    max-width: 140px;
+    width: 28vw;
+    min-width: 80px;
+    height: auto;
+    margin-bottom: 0;
+    object-fit: contain;
+    display: block;
+}
+/* Logo Prefeitura maior */
+.logo-prefeitura-topo {
+    max-width: 340px;
+    width: 70vw;
+    height: auto;
+    margin-bottom: 0;
+    object-fit: contain;
+    display: block;
+}
+@media (max-width: 600px) {
+    .main-header .logo {
+        max-width: 10px;
+        width: auto;
+        min-width: unset;
+        height: auto;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .logo-prefeitura-topo {
+        max-width: 200px;
+        width: 100%;
+        height: 80px;
+        object-fit: contain;
+    }
+}
+@media (max-width: 600px) {
+    .main-header .logo,
+    .logo-prefeitura-topo {
+        max-width: 44vw;
+        width: 44vw;
+        min-width: 70px;
+    }
+}
+@media (max-width: 600px) {
+    .header-logos {
+        gap: 10px;
+    }
+    .main-header .logo, .logo-prefeitura-topo {
+        max-width: 44vw;
+        width: 44vw;
+    }
+}
+header nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+.main-header nav ul li a {
+    color: #351c75;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1em;
+    letter-spacing: 0.5px;
+    transition: color 0.2s, text-shadow 0.2s;
+    text-shadow: 0 1px 0 #b3a0d7;
+}
+.main-header nav ul li a:hover {
+    color: #351c75;
+    text-shadow: 0 2px 8px #b3a0d7;
+}
+.hero-section {
+    background: linear-gradient(120deg, #f3f0fa 60%, #b3a0d7 100%);
+    color: #351c75;
+    padding: 48px 20px 32px 20px;
+    text-align: center;
+    border-radius: 0 0 32px 32px;
+    box-shadow: 0 8px 32px 0 #b3a0d7;
+    position: relative;
+    overflow: hidden;
+}
+.hero-section h1 {
+    font-size: 3em;
+    font-weight: 900;
+    margin-bottom: 18px;
+    letter-spacing: -1px;
+    color: #351c75;
+    text-shadow: 0 2px 8px #b3a0d7;
+}
+.hero-section p {
+    font-size: 1.25em;
+    color: #4a4a4a;
+    margin-bottom: 28px;
+}
+.destaque {
+    color: #351c75;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.hero-section .benefits {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 10px;
+    margin-bottom: 30px;
+}
+.hero-section .benefit {
+    background: #fff;
+    border-radius: 30px;
+    padding: 12px 28px;
+    font-size: 1.08em;
+    font-weight: 600;
+    color: #351c75;
+    box-shadow: 0 4px 16px #b3a0d7;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 2px solid #b3a0d7;
+    transition: box-shadow 0.2s, border 0.2s;
+}
+.hero-section .benefit:hover {
+    box-shadow: 0 8px 32px #b3a0d7;
+    border: 2px solid #351c75;
+}
+.icon-svg {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+main {
+    max-width: 900px;
+    margin: 30px auto 0 auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 30px;
+}
+.ganhos-section {
+    margin-top: 40px;
+    text-align: center;
+}
+.ganhos-box {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    padding: 36px 24px 24px 24px;
+    max-width: 800px;
+    margin: 0 auto 32px auto;
+}
+.ganhos-box h2 {
+    font-size: 2em;
+    font-weight: 700;
+    margin-bottom: 24px;
+}
+.ganhos-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0 0;
+    font-size: 1.15em;
+    color: #4a4a4a;
+}
+.ganhos-list li {
+    margin-bottom: 16px;
+    text-align: left;
+    max-width: 600px;
+    margin-left: 40px;
+    margin-right: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding-left: 12px;
+}
+
+.cta-btn {
+    display: inline-block;
+    background: linear-gradient(90deg, #351c75 0%, #b3a0d7 100%);
+    color: #fff;
+    padding: 18px 48px;
+    border-radius: 32px;
+    font-size: 1.25em;
+    font-weight: 800;
+    text-decoration: none;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+    margin-top: 18px;
+    box-shadow: 0 4px 16px rgba(53,28,117,0.10);
+    letter-spacing: 0.5px;
+    border: none;
+    outline: none;
+}
+.cta-btn:hover {
+    background: linear-gradient(90deg, #b3a0d7 0%, #351c75 100%);
+    box-shadow: 0 8px 32px #351c75;
+    transform: translateY(-2px) scale(1.03);
+}
+.cursos-section {
+    text-align: center;
+    margin-top: 24px;
+}
+.cursos-title {
+    font-size: 1.15em;
+    color: #351c75;
+    margin-bottom: 8px;
+}
+.cursos-destaque {
+    font-size: 1.35em;
+    font-weight: 700;
+    color: #351c75;
+    margin-bottom: 24px;
+}
+.contato-section {
+    text-align: center;
+    margin-top: 40px;
+}
+.logo-prefeitura {
+    margin-top: 20px;
+    max-width: 180px;
+}
+footer {
+    background: transparent;
+    color: #351c75;
+    text-align: center;
+    padding: 18px 0;
+    margin-top: 40px;
+    position: relative;
+    width: 100%;
+    bottom: 0;
+    left: 0;
+    font-size: 1em;
+    box-shadow: 0 -2px 16px #351c75aa;
+}
+@media (max-width: 900px) {
+    main {
+        padding: 10px;
+    }
+    .hero-section {
+        padding: 30px 10px 20px 10px;
+    }
+    .hero-section .benefits {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .ganhos-box {
+        padding: 18px 6px 12px 6px;
+    }
+    .cursos-destaque {
+        font-size: 1.1em;
+    }
+}

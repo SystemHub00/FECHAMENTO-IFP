@@ -1,0 +1,70 @@
+/* Forçar texto do robô para preto em todas as páginas, inclusive sobrescrevendo style.css */
+.assistant-message, .assistant-message *, #assistant-box, #assistant-box * {
+  color: #111 !important;
+  text-shadow: none !important;
+}
+/*
+Arquivo: static/assistant.css
+Descrição: Estilos para o assistente virtual.
+*/
+
+#assistant-icon {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+#assistant-box {
+  position: fixed;
+  bottom: 90px;
+  right: 24px;
+  width: 320px;
+  background: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  padding: 20px 16px 16px 16px;
+  z-index: 1001;
+  font-family: Arial, sans-serif;
+}
+
+#assistant-avatar {
+  font-size: 2.5rem;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+#assistant-text {
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+}
+
+#assistant-box button {
+  margin-right: 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #007bff;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+#assistant-box button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+#assistant-box button:last-child {
+  background: #dc3545;
+}
