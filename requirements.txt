@@ -3,3 +3,4 @@ gspread
 google-auth
 gunicorn
 openpyxl
+pdfplumber
