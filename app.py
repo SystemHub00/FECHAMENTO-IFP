@@ -283,7 +283,7 @@ def parse_tudo(excel_bytes, vf_bytes):
            "valor_atual":0.0,"valor_30":0.0,"valor_60":0.0,"valor_spc":0.0,"valor_cancelados":0.0,
            "ativos":0.0,"cancelados":0.0,"desistentes":0.0,"nunca_veio":0.0,
            "m1_v1":0.0,"m1_v2":0.0,"frequencia":0.0,"retencao":0.0,
-           "tpcv1":0.0,"fonte_vf":False}
+           "tpcv1":0.0,"canc_scpc":0.0,"fonte_vf":False}
 
         # ── EXCEL: frequência, retenção, alunos ──
         if "matricula_quitacao" in abas:
@@ -317,6 +317,7 @@ def parse_tudo(excel_bytes, vf_bytes):
             u["fin_60"]=v["fin_60"]
             u["cancelados"]=v["cancelados"]
             u["tpcv1"]=v["tpcv1"]
+            u["canc_scpc"]=v["canc_scpc"]
             u["fonte_vf"]=True
             # valores R$ de cobrança 30/60 (proporção do faturamento)
             u["valor_atual"]=v["fat_comercial"]*v["fin_atual"]
@@ -369,11 +370,21 @@ def ranquear(unidades):
     for i,u in enumerate(ordenadas): u["posicao"]=i+1
     return ordenadas
 
-def ranquear_por(unidades, chave, reverse=True, somente_vf=True):
+def ranquear_por(unidades, chave, reverse=True, somente_vf=True, desempate=None, desempate_reverse=True):
     """Ranking genérico por um campo. reverse=True → maior é melhor.
-       somente_vf filtra unidades que casaram com o VF (têm o dado oficial)."""
+       somente_vf filtra unidades que casaram com o VF (têm o dado oficial).
+       desempate: campo usado como 2º critério quando o 1º empata."""
     base = [u for u in unidades if (u.get("fonte_vf") or not somente_vf)]
-    ordenadas = sorted(base, key=lambda u: u.get(chave, 0), reverse=reverse)
+    def chave_ordem(u):
+        primario = u.get(chave, 0)
+        # ordena sempre crescente internamente, invertendo o sinal quando reverse
+        p = -primario if reverse else primario
+        if desempate is not None:
+            d = u.get(desempate, 0)
+            s = -d if desempate_reverse else d
+            return (p, s)
+        return (p,)
+    ordenadas = sorted(base, key=chave_ordem)
     for i,u in enumerate(ordenadas): u["pos_crit"]=i+1
     return ordenadas
 
@@ -676,6 +687,12 @@ TEMPLATE = r"""
       <div class="box {{ 'al' if u.desistentes>50 else '' }}"><div class="box-lbl">Desist.</div><div class="box-val">{{ u.desistentes|toint }}</div></div>
       <div class="box {{ 'al' if u.nunca_veio>30 else '' }}"><div class="box-lbl">N.Veio</div><div class="box-val">{{ u.nunca_veio|toint }}</div></div>
     </div>
+    <span class="sec-title">🚫 Cancelamentos <span class="sec-tag vf">VF Oficial</span></span>
+    <div class="row3">
+      <div class="box {{ 'al' if u.cancelados>20 else '' }}"><div class="box-lbl">Cancelamentos</div><div class="box-val">{{ u.cancelados|toint }}</div></div>
+      <div class="box {{ 'al' if u.canc_scpc>0 else '' }}"><div class="box-lbl">Canc. SCPC</div><div class="box-val">{{ u.canc_scpc|toint }}</div></div>
+      <div class="box"><div class="box-lbl">TPCv1</div><div class="box-val">{{ u.tpcv1|pct }}</div></div>
+    </div>
     <div class="fat-total"><span class="fat-lbl">Faturamento Total</span><span class="fat-val">{{ u.fat_total|brl }}</span></div>
     <div class="card-cta">Ver detalhes da unidade ➜</div>
   </div>
@@ -780,6 +797,17 @@ UNIDADE_TEMPLATE = r"""
       </div>
     </div>
   </div>
+  <div class="detail-grid">
+    <div class="dcard">
+      <h4>🚫 Cancelamentos <span class="sec-tag vf">VF Oficial</span></h4>
+      <div class="dbig-grid">
+        <div class="dbig"><div class="dbig-v r">{{ u.cancelados|toint }}</div><div class="dbig-l">Cancelamentos</div></div>
+        <div class="dbig"><div class="dbig-v {{ 'r' if u.canc_scpc>0 else '' }}">{{ u.canc_scpc|toint }}</div><div class="dbig-l">Canc. SCPC</div></div>
+        <div class="dbig"><div class="dbig-v">{{ u.tpcv1|pct }}</div><div class="dbig-l">TPCv1</div></div>
+        <div class="dbig"><div class="dbig-v">{{ u.media_diaria|round(1) }}</div><div class="dbig-l">Média Diária</div></div>
+      </div>
+    </div>
+  </div>
   <div class="detail-actions">
     <a href="/pdf/unidade/{{ idx }}" target="_blank" class="btn btn-red">⬇ Baixar PDF desta unidade</a>
     <a href="/ranking" class="btn btn-ghost">🏆 Ver ranking geral</a>
@@ -846,18 +874,19 @@ RANKING_TEMPLATE = r"""
     </a>
     {% endfor %}
     {% else %}
-    <div class="rank-row head" style="grid-template-columns:56px 1fr minmax(110px,1fr) minmax(90px,140px)"><div>#</div><div>Unidade</div><div>TPCv1</div><div class="rank-hide">Fat. Comercial</div></div>
+    <div class="rank-row head" style="grid-template-columns:56px 1fr minmax(100px,1fr) minmax(80px,120px) minmax(80px,130px)"><div>#</div><div>Unidade</div><div>TPCv1</div><div class="rank-hide">Canc. SCPC</div><div class="rank-hide">Fat. Comercial</div></div>
     {% for u in ranking %}
-    <a href="/unidade/{{ u.idx_orig }}" class="rank-row {{ 'top' if u.pos_crit<=3 else '' }}" style="grid-template-columns:56px 1fr minmax(110px,1fr) minmax(90px,140px)">
+    <a href="/unidade/{{ u.idx_orig }}" class="rank-row {{ 'top' if u.pos_crit<=3 else '' }}" style="grid-template-columns:56px 1fr minmax(100px,1fr) minmax(80px,120px) minmax(80px,130px)">
       <div class="rank-pos {% if u.pos_crit==1 %}top1{% elif u.pos_crit==2 %}top2{% elif u.pos_crit==3 %}top3{% endif %}">{% if u.pos_crit==1 %}🥇{% elif u.pos_crit==2 %}🥈{% elif u.pos_crit==3 %}🥉{% else %}{{ u.pos_crit }}{% endif %}</div>
       <div class="rank-nome">{{ u.nome }}</div>
       <div class="rank-score-cell" style="text-align:left">{{ u.tpcv1|pct }}</div>
+      <div class="rank-cell rank-hide {{ 'r' if u.canc_scpc>0 else 'g' }}">{{ u.canc_scpc|toint }}</div>
       <div class="rank-cell rank-hide">{{ u.fat_comercial|brl0 }}</div>
     </a>
     {% endfor %}
     {% endif %}
   </div>
-  {% if modo=='tpcv1' %}<p style="text-align:center;color:var(--txt2);font-size:.78rem;margin-top:14px;font-weight:600">📉 No TPCv1, <strong>quanto menor melhor</strong> — por isso o 1º lugar é a menor taxa.</p>{% endif %}
+  {% if modo=='tpcv1' %}<p style="text-align:center;color:var(--txt2);font-size:.78rem;margin-top:14px;font-weight:600">📉 No TPCv1, <strong>quanto menor melhor</strong>. Em caso de empate (ex: várias unidades em 0%), o desempate é pelo <strong>maior Faturamento Comercial</strong>.</p>{% endif %}
 </div>
 {% else %}
 <div class="landing"><div class="land-card"><div class="land-top"><div class="lico">🏆</div><h2>Sem dados</h2><p>Carregue os arquivos no Painel para ver o ranking.</p></div>
@@ -910,6 +939,7 @@ h2,.bx-v,.fat-v{font-family:'Sora'}
 <span class="sec">Cobrança (VF Oficial)</span><div class="r3"><div class="bx"><div class="bx-l">Atual</div><div class="bx-v">{{ u.fin_atual|pct }}</div></div><div class="bx"><div class="bx-l">30 dias</div><div class="bx-v">{{ u.fin_30|pct }}</div></div><div class="bx"><div class="bx-l">60 dias</div><div class="bx-v">{{ u.fin_60|pct }}</div></div></div>
 <span class="sec">Faturamento (VF Oficial)</span><div class="r3"><div class="bx"><div class="bx-l">Comercial</div><div class="bx-v">{{ u.fat_comercial|brl0 }}</div></div><div class="bx"><div class="bx-l">Ticket</div><div class="bx-v">{{ u.ticket_medio|brl0 }}</div></div><div class="bx"><div class="bx-l">Matrículas</div><div class="bx-v">{{ u.matriculas|toint }}</div></div></div>
 <span class="sec">Alunos</span><div class="r4"><div class="bx ok"><div class="bx-l">Ativos</div><div class="bx-v">{{ u.ativos|toint }}</div></div><div class="bx {{ 'al' if u.cancelados>20 else '' }}"><div class="bx-l">Cancel.</div><div class="bx-v">{{ u.cancelados|toint }}</div></div><div class="bx {{ 'al' if u.desistentes>50 else '' }}"><div class="bx-l">Desist.</div><div class="bx-v">{{ u.desistentes|toint }}</div></div><div class="bx {{ 'al' if u.nunca_veio>30 else '' }}"><div class="bx-l">N.Veio</div><div class="bx-v">{{ u.nunca_veio|toint }}</div></div></div>
+<span class="sec">Cancelamentos (VF Oficial)</span><div class="r3"><div class="bx {{ 'al' if u.cancelados>20 else '' }}"><div class="bx-l">Cancelamentos</div><div class="bx-v">{{ u.cancelados|toint }}</div></div><div class="bx {{ 'al' if u.canc_scpc>0 else '' }}"><div class="bx-l">Canc. SCPC</div><div class="bx-v">{{ u.canc_scpc|toint }}</div></div><div class="bx"><div class="bx-l">TPCv1</div><div class="bx-v">{{ u.tpcv1|pct }}</div></div></div>
 <div class="fat"><span class="fat-l">Faturamento Total</span><span class="fat-v">{{ u.fat_total|brl }}</span></div>
 </div></div>
 {% endfor %}
@@ -982,17 +1012,18 @@ tr:nth-child(even){background:#f6f8fc}
 </table>
 {% else %}
 <table>
-<tr><th>#</th><th style="text-align:left">Unidade</th><th>TPCv1</th><th>Faturamento Comercial</th></tr>
+<tr><th>#</th><th style="text-align:left">Unidade</th><th>TPCv1</th><th>Canc. SCPC</th><th>Faturamento Comercial</th></tr>
 {% for u in ranking %}
 <tr>
   <td class="pos">{% if u.pos_crit==1 %}🥇{% elif u.pos_crit==2 %}🥈{% elif u.pos_crit==3 %}🥉{% else %}{{ u.pos_crit }}{% endif %}</td>
   <td class="nm">{{ u.nome }}</td>
   <td class="sc">{{ u.tpcv1|pct }}</td>
+  <td class="{{ 'r' if u.canc_scpc>0 else 'g' }}">{{ u.canc_scpc|toint }}</td>
   <td>{{ u.fat_comercial|brl0 }}</td>
 </tr>
 {% endfor %}
 </table>
-<p style="text-align:center;color:#646c8c;font-size:.72rem;margin:4px 18px 0;font-weight:600">📉 No TPCv1, quanto menor melhor — o 1º lugar é a menor taxa.</p>
+<p style="text-align:center;color:#646c8c;font-size:.72rem;margin:4px 18px 0;font-weight:600">📉 No TPCv1, quanto menor melhor — empate é decidido pelo maior Faturamento Comercial.</p>
 {% endif %}
 <div class="rod">Gerado pelo sistema IFP Dashboard &nbsp;|&nbsp; {{ periodo }}</div>
 {% if auto_print %}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},800)});</script>{% endif %}
@@ -1083,7 +1114,7 @@ def ranking_tpcv1():
     rk=[]
     if data:
         for i,u in enumerate(data): u["idx_orig"]=i
-        rk=_preparar_metricas(ranquear_por(list(data),"tpcv1",reverse=False),"tpcv1")
+        rk=_preparar_metricas(ranquear_por(list(data),"tpcv1",reverse=False,desempate="fat_comercial",desempate_reverse=True),"tpcv1")
     return render_template_string(RANKING_TEMPLATE.replace("__CSS__",CSS),
         ranking=rk,periodo=periodo,modo="tpcv1",
         titulo="Ranking TPCv1",
@@ -1149,7 +1180,7 @@ def pdf_ranking_comercial():
 def pdf_ranking_tpcv1():
     data,periodo,_=get_cached_data()
     if not data: return redirect("/?msg=Sem+dados&ok=0")
-    rk=_preparar_metricas(ranquear_por(list(data),"tpcv1",reverse=False),"tpcv1")
+    rk=_preparar_metricas(ranquear_por(list(data),"tpcv1",reverse=False,desempate="fat_comercial",desempate_reverse=True),"tpcv1")
     return Response(render_template_string(PDF_RANKING,ranking=rk,periodo=periodo or "—",
         auto_print=True,modo="tpcv1",titulo="Ranking TPCv1 (menor → melhor)"),mimetype="text/html")
 
