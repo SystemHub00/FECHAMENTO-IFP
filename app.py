@@ -283,7 +283,7 @@ def parse_tudo(excel_bytes, vf_bytes):
            "valor_atual":0.0,"valor_30":0.0,"valor_60":0.0,"valor_spc":0.0,"valor_cancelados":0.0,
            "ativos":0.0,"cancelados":0.0,"desistentes":0.0,"nunca_veio":0.0,
            "m1_v1":0.0,"m1_v2":0.0,"frequencia":0.0,"retencao":0.0,
-           "fonte_vf":False}
+           "tpcv1":0.0,"fonte_vf":False}
 
         # ── EXCEL: frequência, retenção, alunos ──
         if "matricula_quitacao" in abas:
@@ -316,6 +316,7 @@ def parse_tudo(excel_bytes, vf_bytes):
             u["fin_30"]=v["fin_30"]
             u["fin_60"]=v["fin_60"]
             u["cancelados"]=v["cancelados"]
+            u["tpcv1"]=v["tpcv1"]
             u["fonte_vf"]=True
             # valores R$ de cobrança 30/60 (proporção do faturamento)
             u["valor_atual"]=v["fat_comercial"]*v["fin_atual"]
@@ -368,6 +369,14 @@ def ranquear(unidades):
     for i,u in enumerate(ordenadas): u["posicao"]=i+1
     return ordenadas
 
+def ranquear_por(unidades, chave, reverse=True, somente_vf=True):
+    """Ranking genérico por um campo. reverse=True → maior é melhor.
+       somente_vf filtra unidades que casaram com o VF (têm o dado oficial)."""
+    base = [u for u in unidades if (u.get("fonte_vf") or not somente_vf)]
+    ordenadas = sorted(base, key=lambda u: u.get(chave, 0), reverse=reverse)
+    for i,u in enumerate(ordenadas): u["pos_crit"]=i+1
+    return ordenadas
+
 # ═════════════════════════════════════════════════════════════
 # CACHE
 # ═════════════════════════════════════════════════════════════
@@ -387,130 +396,211 @@ def debug_index():
     links="".join(f'<li>{k} — {list(v.keys())}</li>' for k,v in sorted(grupos.items()))
     return f"<h2>Unidades ({len(grupos)})</h2><ul style='font-family:monospace'>{links}</ul>"
 
+
 # ═════════════════════════════════════════════════════════════
-# CSS COMPARTILHADO
+# CSS COMPARTILHADO — identidade IFP refinada
 # ═════════════════════════════════════════════════════════════
 CSS = r"""
-:root{--red:#c0021c;--red-dk:#8b0014;--red-lt:rgba(192,2,28,.07);--blue:#1a237e;--blue-lt:#3949ab;
---bg:#f2f4f8;--borda:#dde1ef;--txt:#1a1f36;--txt2:#5a6282;--verde:#2e7d32;--verde-lt:#43a047;--verde-bg:#e8f5e9;
---amber:#e65100;--amber-lt:#fb8c00;--amber-bg:#fff3e0;--rose:#c62828;--rose-bg:#ffebee;
---ouro:#d4af37;--prata:#9fa8b5;--bronze:#cd7f32;--r:14px;--shadow:0 2px 16px rgba(26,35,126,.10)}
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+:root{
+  --red:#c0021c;--red-dk:#8b0014;--red-br:#e30a2a;--red-lt:rgba(192,2,28,.06);
+  --blue:#16205e;--blue-2:#1f2d7a;--blue-lt:#3949ab;--blue-soft:#eef0fb;
+  --bg:#eef1f7;--bg-2:#f6f8fc;--card:#fff;--borda:#e2e6f2;--txt:#141a36;--txt2:#646c8c;
+  --verde:#1b7a3d;--verde-lt:#2fad5a;--verde-bg:#e7f6ec;
+  --amber:#c2620a;--amber-lt:#f59020;--amber-bg:#fff4e6;
+  --rose:#c0021c;--rose-bg:#fdebed;
+  --ouro:#d4af37;--ouro-2:#f4cf52;--prata:#9aa3b2;--prata-2:#c7cedb;--bronze:#cd7f32;--bronze-2:#e0a96d;
+  --r:18px;--r-sm:12px;
+  --shadow:0 4px 18px rgba(22,32,94,.08);--shadow-lg:0 14px 44px rgba(22,32,94,.16);
+  --shadow-red:0 10px 30px rgba(192,2,28,.22);
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
-.hdr{background:linear-gradient(120deg,var(--red-dk),var(--red) 60%,#d40020);color:#fff;box-shadow:0 4px 24px rgba(192,2,28,.35)}
-.hdr-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;gap:12px;flex-wrap:wrap}
-.logo-wrap{display:flex;align-items:center;gap:14px}
-.logo-img{width:52px;height:52px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center}
-.logo-img span{font-size:1.1rem;font-weight:900;color:var(--red);letter-spacing:-1px}
-.logo-txt h1{font-size:1.15rem;font-weight:800;color:#fff;line-height:1.2}
-.logo-txt p{font-size:.72rem;opacity:.85;margin-top:2px}
-.hdr-badge{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);border-radius:20px;padding:6px 16px;font-size:.8rem;font-weight:700;color:#fff}
-.nav{background:var(--blue);border-bottom:3px solid var(--red);padding:0 24px}
-.nav-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.nav a{padding:12px 18px;color:rgba(255,255,255,.7);text-decoration:none;font-size:.86rem;font-weight:700;border-bottom:3px solid transparent;margin-bottom:-3px}
-.nav a:hover{color:#fff}.nav a.ativo{color:#fff;border-bottom-color:#fff}
-.toolbar{background:#fff;border-bottom:1px solid var(--borda);padding:10px 24px}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:
+  radial-gradient(1200px 500px at 85% -10%,rgba(192,2,28,.05),transparent),
+  radial-gradient(1000px 400px at 0% 0%,rgba(22,32,94,.05),transparent),var(--bg);
+  color:var(--txt);min-height:100vh}
+h1,h2,h3,.cnome,.tc-val,.podium-nome,.detail-hero h2{font-family:'Sora',sans-serif}
+
+/* HEADER */
+.hdr{background:linear-gradient(115deg,var(--red-dk) 0%,var(--red) 55%,var(--red-br) 100%);
+  color:#fff;position:relative;overflow:hidden}
+.hdr::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(600px 200px at 90% 120%,rgba(255,255,255,.12),transparent);pointer-events:none}
+.hdr-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:16px 26px;gap:12px;flex-wrap:wrap;position:relative}
+.logo-wrap{display:flex;align-items:center;gap:15px}
+.logo-img{width:54px;height:54px;background:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.logo-img span{font-family:'Sora';font-size:1.15rem;font-weight:800;color:var(--red);letter-spacing:-1px}
+.logo-txt h1{font-size:1.2rem;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.3px}
+.logo-txt p{font-size:.74rem;opacity:.82;margin-top:3px;font-weight:500}
+.hdr-badge{background:rgba(255,255,255,.16);border:1.5px solid rgba(255,255,255,.4);border-radius:30px;padding:7px 18px;font-size:.82rem;font-weight:700;color:#fff;backdrop-filter:blur(6px)}
+
+/* NAV */
+.nav{background:var(--blue);padding:0 26px;box-shadow:0 3px 14px rgba(22,32,94,.2)}
+.nav-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.nav a{padding:14px 20px;color:rgba(255,255,255,.62);text-decoration:none;font-size:.87rem;font-weight:700;border-bottom:3px solid transparent;margin-bottom:-1px;transition:.18s;display:flex;align-items:center;gap:7px}
+.nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
+.nav a.ativo{color:#fff;border-bottom-color:var(--red-br)}
+
+/* TOOLBAR */
+.toolbar{background:var(--card);border-bottom:1px solid var(--borda);padding:12px 26px}
 .toolbar-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toolbar label{font-size:.82rem;font-weight:700;color:var(--txt2)}
-.toolbar input[type=file]{font-size:.8rem;padding:6px 10px;border:1.5px solid var(--borda);border-radius:8px;background:#f8f9fc;color:var(--txt)}
-.toolbar input[type=file]::-webkit-file-upload-button{background:var(--red);color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-right:8px}
-.btn{border:none;border-radius:8px;font:inherit;font-weight:700;cursor:pointer;padding:8px 18px;font-size:.84rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red-dk)}
-.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue-lt)}
-.smsg{font-size:.8rem;font-weight:600}.smsg.ok{color:#2e7d32}.smsg.err{color:#c62828}
-.filtros{background:#fff;border-bottom:1px solid var(--borda);padding:10px 24px}
+.toolbar input[type=file]{font-size:.78rem;padding:7px 10px;border:1.5px solid var(--borda);border-radius:10px;background:var(--bg-2);color:var(--txt)}
+.toolbar input[type=file]::-webkit-file-upload-button{background:var(--red);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:.76rem;font-weight:700;cursor:pointer;margin-right:8px}
+.btn{border:none;border-radius:11px;font:inherit;font-weight:700;cursor:pointer;padding:9px 20px;font-size:.84rem;text-decoration:none;display:inline-flex;align-items:center;gap:7px;transition:.18s}
+.btn-red{background:var(--red);color:#fff;box-shadow:0 4px 14px rgba(192,2,28,.28)}.btn-red:hover{background:var(--red-dk);transform:translateY(-1px)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue-2);transform:translateY(-1px)}
+.btn-ghost{background:var(--blue-soft);color:var(--blue);}.btn-ghost:hover{background:#e0e4f8}
+.smsg{font-size:.8rem;font-weight:700}.smsg.ok{color:var(--verde)}.smsg.err{color:var(--rose)}
+
+/* FILTROS */
+.filtros{background:var(--card);border-bottom:1px solid var(--borda);padding:12px 26px}
 .filtros-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.flabel{font-size:.8rem;font-weight:700;color:var(--blue)}
-.fbtn{padding:5px 15px;border-radius:20px;border:1.5px solid var(--borda);background:#f4f5f9;color:var(--txt2);font-size:.8rem;font-weight:600;cursor:pointer}
-.fbtn:hover{border-color:var(--red);color:var(--red)}.fbtn.ativo{background:var(--blue);color:#fff;border-color:var(--blue)}
-.search{padding:6px 14px;border-radius:20px;border:1.5px solid var(--borda);background:#f4f5f9;font-size:.82rem;outline:none;width:210px;font-family:inherit}
-.search:focus{border-color:var(--red)}
-.totais{max-width:1600px;margin:18px auto 0;padding:0 24px}
-.totais-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px}
-.tc{background:#fff;border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);border-top:4px solid var(--blue);display:flex;flex-direction:column;gap:3px}
-.tc-lbl{font-size:.66rem;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em}
-.tc-val{font-size:1.45rem;font-weight:900;color:var(--blue)}.tc-sub{font-size:.68rem;color:var(--txt2)}
-.tc.r{border-top-color:var(--red)}.tc.r .tc-val{color:var(--red)}
-.tc.g{border-top-color:var(--verde-lt)}.tc.g .tc-val{color:var(--verde)}
-.tc.x{border-top-color:#e53935}.tc.x .tc-val{color:#c62828}
-.cards{max-width:1600px;margin:18px auto 50px;padding:0 24px}
-.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(345px,1fr));gap:14px}
-.ucard{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;border:1.5px solid var(--borda);transition:.2s}
-.ucard:hover{box-shadow:0 8px 30px rgba(192,2,28,.18);transform:translateY(-2px)}
-.chd{padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.chd.bom{background:linear-gradient(135deg,#1b5e20,#2e7d32);color:#fff}
+.flabel{font-size:.8rem;font-weight:800;color:var(--blue);letter-spacing:.02em}
+.fbtn{padding:7px 17px;border-radius:30px;border:1.5px solid var(--borda);background:var(--bg-2);color:var(--txt2);font-size:.8rem;font-weight:700;cursor:pointer;transition:.16s}
+.fbtn:hover{border-color:var(--red);color:var(--red)}
+.fbtn.ativo{background:var(--blue);color:#fff;border-color:var(--blue)}
+.search{padding:8px 16px;border-radius:30px;border:1.5px solid var(--borda);background:var(--bg-2);font-size:.82rem;outline:none;width:220px;font-family:inherit;transition:.16s}
+.search:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--red-lt)}
+
+/* TOTAIS */
+.totais{max-width:1600px;margin:22px auto 0;padding:0 26px}
+.totais-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(186px,1fr));gap:14px}
+.tc{background:var(--card);border-radius:var(--r);padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;border:1px solid var(--borda);transition:.2s}
+.tc:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.tc::before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--blue),var(--blue-lt))}
+.tc-ico{position:absolute;top:14px;right:14px;font-size:1.1rem;opacity:.25}
+.tc-lbl{font-size:.66rem;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em}
+.tc-val{font-size:1.7rem;font-weight:800;color:var(--blue);line-height:1.1;margin-top:6px;letter-spacing:-.5px}
+.tc-sub{font-size:.7rem;color:var(--txt2);margin-top:4px;font-weight:600}
+.tc.r::before{background:linear-gradient(90deg,var(--red-dk),var(--red-br))}.tc.r .tc-val{color:var(--red)}
+.tc.g::before{background:linear-gradient(90deg,var(--verde),var(--verde-lt))}.tc.g .tc-val{color:var(--verde)}
+.tc.x::before{background:linear-gradient(90deg,#9a0012,#e53935)}.tc.x .tc-val{color:var(--rose)}
+
+/* CARDS */
+.cards{max-width:1600px;margin:22px auto 60px;padding:0 26px}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(352px,1fr));gap:16px}
+.ucard{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--borda);transition:.22s;cursor:pointer;position:relative;display:block;text-decoration:none;color:inherit}
+.ucard:hover{box-shadow:var(--shadow-lg);transform:translateY(-4px)}
+.ucard:hover .chd::after{opacity:1;transform:translateX(0)}
+.chd{padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:relative;overflow:hidden}
+.chd::before{content:"";position:absolute;inset:0;background:radial-gradient(400px 120px at 110% -30%,rgba(255,255,255,.18),transparent)}
+.chd::after{content:"➜";position:absolute;right:14px;top:50%;transform:translate(8px,-50%);margin-top:0;color:rgba(255,255,255,.9);font-size:1rem;opacity:0;transition:.2s}
+.chd.bom{background:linear-gradient(135deg,#155e30,#1f9048);color:#fff}
 .chd.ruim{background:linear-gradient(135deg,var(--red-dk),var(--red));color:#fff}
-.cnome{font-size:.9rem;font-weight:800;flex:1}
-.sbadge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);border-radius:20px;padding:3px 10px;font-size:.7rem;font-weight:700;white-space:nowrap}
-.cbody{padding:12px 13px;display:flex;flex-direction:column;gap:5px}
-.ind{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px}
+.cnome{font-size:.95rem;font-weight:800;flex:1;letter-spacing:-.2px;position:relative;z-index:1}
+.sbadge{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);border-radius:30px;padding:4px 11px;font-size:.7rem;font-weight:800;white-space:nowrap;position:relative;z-index:1;backdrop-filter:blur(4px)}
+.cbody{padding:13px 14px;display:flex;flex-direction:column;gap:5px}
+.ind{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:9px}
 .ind.verde{background:var(--verde-bg)}.ind.amarelo{background:var(--amber-bg)}.ind.vermelho{background:var(--rose-bg)}
-.ind-lbl{font-size:.73rem;font-weight:600;color:var(--txt2);flex:1}
-.ind-meta{font-size:.6rem;color:var(--txt2);opacity:.7}.ind-val{font-size:.83rem;font-weight:800}
+.ind-lbl{font-size:.74rem;font-weight:700;color:var(--txt2);flex:1}
+.ind-meta{font-size:.6rem;color:var(--txt2);opacity:.75;font-weight:600}.ind-val{font-size:.85rem;font-weight:800}
 .ind.verde .ind-val{color:var(--verde)}.ind.amarelo .ind-val{color:var(--amber)}.ind.vermelho .ind-val{color:var(--rose)}
-.barwrap{width:50px;height:5px;background:#e0e4f0;border-radius:3px;overflow:hidden}
-.bar{height:100%;border-radius:3px}.bar.verde{background:var(--verde-lt)}.bar.amarelo{background:var(--amber-lt)}.bar.vermelho{background:#e53935}
-.sec-title{font-size:.65rem;font-weight:700;color:var(--txt2);text-transform:uppercase;padding:6px 0 2px;border-top:1px solid var(--borda);margin-top:4px;display:flex;align-items:center;gap:5px}
-.sec-tag{font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:8px;text-transform:none;letter-spacing:0}
-.sec-tag.mq{background:#e8eaf6;color:var(--blue)}.sec-tag.vf{background:#fff3e0;color:#e65100}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-.box{background:#f4f5f9;border-radius:7px;padding:6px 7px;text-align:center}
-.box-lbl{font-size:.58rem;font-weight:700;color:var(--txt2);text-transform:uppercase}
-.box-val{font-size:.88rem;font-weight:800;color:var(--blue);margin-top:2px}
+.barwrap{width:54px;height:6px;background:#e3e7f1;border-radius:4px;overflow:hidden;flex-shrink:0}
+.bar{height:100%;border-radius:4px}.bar.verde{background:linear-gradient(90deg,var(--verde),var(--verde-lt))}.bar.amarelo{background:linear-gradient(90deg,var(--amber),var(--amber-lt))}.bar.vermelho{background:linear-gradient(90deg,#9a0012,#e53935)}
+.sec-title{font-size:.64rem;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;padding:8px 0 3px;border-top:1px dashed var(--borda);margin-top:5px;display:flex;align-items:center;gap:6px}
+.sec-tag{font-size:.55rem;font-weight:800;padding:2px 7px;border-radius:8px;text-transform:none;letter-spacing:0}
+.sec-tag.mq{background:var(--blue-soft);color:var(--blue)}.sec-tag.vf{background:var(--amber-bg);color:var(--amber)}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.box{background:var(--bg-2);border-radius:9px;padding:7px 7px;text-align:center;border:1px solid var(--borda)}
+.box-lbl{font-size:.57rem;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.03em}
+.box-val{font-size:.9rem;font-weight:800;color:var(--blue);margin-top:3px}
 .box.ok .box-val{color:var(--verde)}.box.al .box-val{color:var(--red)}
-.fd3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
-.fd{background:#f4f5f9;border-radius:7px;padding:5px 7px}
-.fd-l{font-size:.56rem;font-weight:700;color:var(--txt2);text-transform:uppercase}
-.fd-p{font-size:.9rem;font-weight:800;margin-top:1px}.fd-v{font-size:.65rem;color:var(--txt2);margin-top:1px}
+.fd3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.fd{background:var(--bg-2);border-radius:9px;padding:6px 8px;border:1px solid var(--borda)}
+.fd-l{font-size:.55rem;font-weight:800;color:var(--txt2);text-transform:uppercase}
+.fd-p{font-size:.92rem;font-weight:800;margin-top:2px}.fd-v{font-size:.64rem;color:var(--txt2);margin-top:1px;font-weight:600}
 .fd.ok .fd-p{color:var(--verde)}.fd.am .fd-p{color:var(--amber)}.fd.bad .fd-p{color:var(--rose)}
-.fat-total{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;background:linear-gradient(135deg,#e8eaf6,#c5cae9);margin-top:4px}
-.fat-lbl{font-size:.73rem;font-weight:700;color:var(--blue)}.fat-val{font-size:.93rem;font-weight:900;color:var(--blue)}
-.btn-card-pdf{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;padding:7px 0;border-radius:8px;background:var(--red);color:#fff;font-size:.76rem;font-weight:700;text-decoration:none}
-.btn-card-pdf:hover{background:var(--red-dk)}
-.landing{max-width:660px;margin:50px auto;padding:0 24px}
-.land-card{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(26,35,126,.12);overflow:hidden}
-.land-top{background:linear-gradient(135deg,var(--red-dk),var(--red));padding:36px 36px 28px;text-align:center}
-.land-top .lico{font-size:3.5rem;margin-bottom:10px}.land-top h2{font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:6px}
-.land-top p{color:rgba(255,255,255,.88);font-size:.92rem;line-height:1.55}
-.land-body{padding:30px 36px}.land-body h3{font-size:1rem;font-weight:800;color:var(--blue);margin-bottom:14px}
-.uprow{display:flex;flex-direction:column;gap:14px;margin-bottom:6px}
-.upbox{border:2px dashed var(--borda);border-radius:12px;padding:18px;background:#f9fafc;display:flex;align-items:center;gap:14px}
+.fat-total{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:11px;background:linear-gradient(135deg,var(--blue-soft),#dfe3f7);margin-top:5px;border:1px solid #d2d8f0}
+.fat-lbl{font-size:.73rem;font-weight:800;color:var(--blue)}.fat-val{font-size:.98rem;font-weight:800;color:var(--blue)}
+.card-cta{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:9px;padding:8px 0;border-radius:11px;background:var(--blue-soft);color:var(--blue);font-size:.76rem;font-weight:800;transition:.16s}
+.ucard:hover .card-cta{background:var(--red);color:#fff}
+
+/* LANDING / upload */
+.landing{max-width:680px;margin:54px auto;padding:0 24px}
+.land-card{background:var(--card);border-radius:24px;box-shadow:var(--shadow-lg);overflow:hidden}
+.land-top{background:linear-gradient(135deg,var(--red-dk),var(--red) 70%,var(--red-br));padding:40px 38px 30px;text-align:center;position:relative;overflow:hidden}
+.land-top::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 80% 130%,rgba(255,255,255,.14),transparent)}
+.land-top .lico{font-size:3.6rem;margin-bottom:10px;position:relative}
+.land-top h2{font-size:1.6rem;font-weight:800;color:#fff;margin-bottom:7px;position:relative}
+.land-top p{color:rgba(255,255,255,.9);font-size:.92rem;line-height:1.55;position:relative}
+.land-body{padding:32px 38px}.land-body h3{font-size:1.05rem;font-weight:800;color:var(--blue);margin-bottom:16px}
+.uprow{display:flex;flex-direction:column;gap:14px}
+.upbox{border:2px dashed var(--borda);border-radius:14px;padding:18px;background:var(--bg-2);display:flex;align-items:center;gap:14px;transition:.18s}
 .upbox.ok{border-color:var(--verde-lt);background:var(--verde-bg)}
-.upbox-ico{font-size:1.8rem;flex-shrink:0}
-.upbox-txt{flex:1}.upbox-txt b{font-size:.88rem;color:var(--blue);display:block}
+.upbox-ico{font-size:1.9rem;flex-shrink:0}
+.upbox-txt{flex:1}.upbox-txt b{font-size:.9rem;color:var(--blue);display:block}
 .upbox-txt span{font-size:.74rem;color:var(--txt2)}
-.upbox input[type=file]{font-size:.76rem;max-width:170px}
-.upbox input[type=file]::-webkit-file-upload-button{background:var(--red);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:.74rem;font-weight:700;cursor:pointer;margin-right:6px}
-.land-btn{display:block;width:100%;margin-top:18px;padding:13px;border-radius:10px;background:var(--red);color:#fff;border:none;font:inherit;font-size:.95rem;font-weight:800;cursor:pointer}
-.land-btn:hover{background:var(--red-dk)}
-.land-hints{margin-top:18px;display:flex;flex-direction:column;gap:8px}
-.hint{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:#fff3e0;font-size:.78rem;color:#8a5200}
+.upbox input[type=file]{font-size:.74rem;max-width:165px}
+.upbox input[type=file]::-webkit-file-upload-button{background:var(--red);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:.72rem;font-weight:700;cursor:pointer;margin-right:6px}
+.land-btn{display:block;width:100%;margin-top:20px;padding:14px;border-radius:13px;background:var(--red);color:#fff;border:none;font:inherit;font-size:.96rem;font-weight:800;cursor:pointer;box-shadow:var(--shadow-red);transition:.18s}
+.land-btn:hover{background:var(--red-dk);transform:translateY(-2px)}
+.land-hints{margin-top:20px;display:flex;flex-direction:column;gap:9px}
+.hint{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:11px;background:var(--amber-bg);font-size:.78rem;color:#8a5200;font-weight:600}
 .hint-icon{font-size:1.1rem}
-.rank-wrap{max-width:1100px;margin:24px auto 50px;padding:0 24px}
-.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:14px;align-items:end;margin-bottom:28px}
-.podium-card{border-radius:16px;padding:18px 14px;text-align:center;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.18)}
-.podium-card.p1{background:linear-gradient(160deg,#f4cf52,#d4af37);padding-top:28px}
-.podium-card.p2{background:linear-gradient(160deg,#c3ccd6,#9fa8b5)}
-.podium-card.p3{background:linear-gradient(160deg,#e0a96d,#cd7f32)}
-.podium-medal{font-size:2.4rem;line-height:1;margin-bottom:6px}
-.podium-pos{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.9}
-.podium-nome{font-size:1.05rem;font-weight:900;margin:4px 0 8px;line-height:1.15}
-.podium-score{font-size:1.9rem;font-weight:900}.podium-score small{font-size:.7rem;font-weight:700;opacity:.85}
-.podium-meta{font-size:.72rem;font-weight:700;margin-top:6px;background:rgba(255,255,255,.2);border-radius:10px;padding:3px 8px;display:inline-block}
-.rank-table{background:#fff;border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
-.rank-row{display:grid;grid-template-columns:54px 1fr repeat(6,minmax(60px,90px)) 80px;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--borda);font-size:.82rem}
-.rank-row.head{background:var(--blue);color:#fff;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
-.rank-row:last-child{border-bottom:none}.rank-row:not(.head):hover{background:#f8f9fc}
-.rank-pos{font-weight:900;font-size:1rem;color:var(--blue);text-align:center}
-.rank-pos.top1{color:#d4af37}.rank-pos.top2{color:#9fa8b5}.rank-pos.top3{color:#cd7f32}
-.rank-nome{font-weight:700}.rank-cell{text-align:center;font-weight:700}
-.rank-cell.g{color:var(--verde)}.rank-cell.r{color:var(--rose)}
-.rank-score-cell{text-align:center;font-weight:900;color:var(--blue);font-size:.95rem}
-.rank-badge{font-size:.6rem;font-weight:800;padding:2px 8px;border-radius:10px}
+
+/* DETALHE DA UNIDADE */
+.detail{max-width:1100px;margin:24px auto 60px;padding:0 26px}
+.detail-back{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;font-weight:700;color:var(--blue);text-decoration:none;margin-bottom:16px;padding:7px 14px;border-radius:30px;background:var(--card);box-shadow:var(--shadow);transition:.16s}
+.detail-back:hover{background:var(--blue);color:#fff;transform:translateX(-3px)}
+.detail-hero{border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-lg);margin-bottom:20px}
+.detail-hero-top{padding:26px 28px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative;overflow:hidden}
+.detail-hero-top::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 95% 130%,rgba(255,255,255,.15),transparent)}
+.detail-hero-top.bom{background:linear-gradient(135deg,#155e30,#1f9048)}
+.detail-hero-top.ruim{background:linear-gradient(135deg,var(--red-dk),var(--red))}
+.detail-hero h2{font-size:1.8rem;font-weight:800;position:relative;letter-spacing:-.5px}
+.detail-hero .sub{font-size:.84rem;opacity:.88;margin-top:4px;position:relative;font-weight:500}
+.detail-status{text-align:center;position:relative}
+.detail-status .big{font-size:2.6rem;font-weight:800;font-family:'Sora';line-height:1}
+.detail-status .lbl{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.9;margin-top:3px}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px}
+.dcard{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:18px 20px;border:1px solid var(--borda)}
+.dcard h4{font-size:.7rem;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.dind{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--borda)}
+.dind:last-child{border-bottom:none}
+.dind-l{font-size:.82rem;font-weight:600;color:var(--txt)}
+.dind-r{display:flex;align-items:center;gap:10px}
+.dind-v{font-size:1rem;font-weight:800}.dind-v.verde{color:var(--verde)}.dind-v.amarelo{color:var(--amber)}.dind-v.vermelho{color:var(--rose)}
+.dbar{width:70px;height:7px;background:#e3e7f1;border-radius:5px;overflow:hidden}
+.dmeta{font-size:.62rem;color:var(--txt2);font-weight:600}
+.dbig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.dbig{background:var(--bg-2);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--borda)}
+.dbig-v{font-size:1.4rem;font-weight:800;color:var(--blue);font-family:'Sora'}
+.dbig-v.g{color:var(--verde)}.dbig-v.r{color:var(--red)}
+.dbig-l{font-size:.62rem;font-weight:800;color:var(--txt2);text-transform:uppercase;margin-top:3px}
+.detail-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+
+/* RANKING */
+.rank-wrap{max-width:1120px;margin:26px auto 60px;padding:0 26px}
+.podium{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:16px;align-items:end;margin-bottom:30px}
+.podium-card{border-radius:20px;padding:22px 16px;text-align:center;color:#fff;box-shadow:var(--shadow-lg);position:relative;overflow:hidden;transition:.2s}
+.podium-card:hover{transform:translateY(-4px)}
+.podium-card::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 120px at 50% -20%,rgba(255,255,255,.25),transparent)}
+.podium-card.p1{background:linear-gradient(165deg,var(--ouro-2),var(--ouro));padding-top:34px}
+.podium-card.p2{background:linear-gradient(165deg,var(--prata-2),var(--prata))}
+.podium-card.p3{background:linear-gradient(165deg,var(--bronze-2),var(--bronze))}
+.podium-medal{font-size:2.7rem;line-height:1;margin-bottom:8px;position:relative;filter:drop-shadow(0 3px 6px rgba(0,0,0,.2))}
+.podium-pos{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;opacity:.95;position:relative}
+.podium-nome{font-size:1.1rem;font-weight:800;margin:5px 0 10px;line-height:1.15;position:relative}
+.podium-score{font-size:2.1rem;font-weight:800;font-family:'Sora';position:relative}
+.podium-score small{font-size:.7rem;font-weight:700;opacity:.85}
+.podium-meta{font-size:.72rem;font-weight:700;margin-top:7px;background:rgba(255,255,255,.25);border-radius:12px;padding:4px 10px;display:inline-block;position:relative}
+.rank-table{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--borda)}
+.rank-row{display:grid;grid-template-columns:56px 1fr repeat(5,minmax(58px,86px)) 76px 70px;align-items:center;gap:8px;padding:13px 18px;border-bottom:1px solid var(--borda);font-size:.82rem;transition:.14s;text-decoration:none;color:inherit}
+.rank-row.head{background:var(--blue);color:#fff;font-weight:800;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em}
+.rank-row:last-child{border-bottom:none}
+.rank-row:not(.head):hover{background:var(--blue-soft)}
+.rank-row.top:not(.head){background:linear-gradient(90deg,rgba(212,175,55,.07),transparent)}
+.rank-pos{font-weight:800;font-size:1.05rem;color:var(--blue);text-align:center}
+.rank-pos.top1{color:var(--ouro)}.rank-pos.top2{color:var(--prata)}.rank-pos.top3{color:var(--bronze)}
+.rank-nome{font-weight:800}
+.rank-cell{text-align:center;font-weight:700}.rank-cell.g{color:var(--verde)}.rank-cell.r{color:var(--rose)}
+.rank-score-cell{text-align:center;font-weight:800;color:var(--blue);font-size:.98rem;font-family:'Sora'}
+.rank-badge{font-size:.6rem;font-weight:800;padding:3px 9px;border-radius:30px}
 .rank-badge.bom{background:var(--verde-bg);color:var(--verde)}.rank-badge.ruim{background:var(--rose-bg);color:var(--rose)}
-@media(max-width:900px){.rank-row{grid-template-columns:40px 1fr 70px 70px;font-size:.74rem}.rank-hide{display:none}}
+@media(max-width:920px){.rank-row{grid-template-columns:42px 1fr 66px 66px;font-size:.74rem}.rank-hide{display:none}}
 @media(max-width:640px){.cards-grid{grid-template-columns:1fr}.totais-grid{grid-template-columns:repeat(2,1fr)}.row3,.fd3{grid-template-columns:1fr 1fr}.row4{grid-template-columns:repeat(2,1fr)}.podium{grid-template-columns:1fr}.podium-card.p1{order:-1}}
-@media print{.hdr,.nav,.toolbar,.filtros,.totais,.btn-card-pdf,.btn,.btn-blue{display:none!important}.cards,.rank-wrap{margin:0;padding:0}.cards-grid{grid-template-columns:repeat(2,1fr)}.ucard{break-inside:avoid;box-shadow:none;border:1px solid #ccc}body{background:#fff}}
+@media print{.hdr,.nav,.toolbar,.filtros,.totais,.card-cta,.btn,.btn-blue,.detail-back,.detail-actions{display:none!important}.cards,.rank-wrap,.detail{margin:0;padding:0}.cards-grid{grid-template-columns:repeat(2,1fr)}.ucard{break-inside:avoid;box-shadow:none;border:1px solid #ccc}body{background:#fff}}
 """
 
 # ═════════════════════════════════════════════════════════════
@@ -519,15 +609,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 TEMPLATE = r"""
 <!DOCTYPE html><html lang="pt-br"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IFP – Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<style>__CSS__</style></head><body>
+<title>IFP – Dashboard</title><style>__CSS__</style></head><body>
 <div class="hdr"><div class="hdr-in">
   <div class="logo-wrap"><div class="logo-img"><span>IFP</span></div>
   <div class="logo-txt"><h1>Dashboard de Fechamento Mensal</h1><p>Instituto de Formação Profissional</p></div></div>
   {% if periodo %}<div class="hdr-badge">📅 {{ periodo }}</div>{% endif %}
 </div></div>
-<div class="nav"><div class="nav-in"><a href="/" class="ativo">📊 Painel</a><a href="/ranking">🏆 Ranking</a></div></div>
+<div class="nav"><div class="nav-in"><a href="/" class="ativo">📊 Painel</a><a href="/ranking">🏆 Ranking Geral</a><a href="/ranking/comercial">💰 Ranking Comercial</a><a href="/ranking/tpcv1">📉 Ranking TPCv1</a></div></div>
 {% if unidades %}
 <div class="toolbar"><div class="toolbar-in">
   <form method="POST" action="/upload" enctype="multipart/form-data" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -541,23 +629,23 @@ TEMPLATE = r"""
 <div class="filtros"><div class="filtros-in">
   <span class="flabel">Filtrar:</span>
   <button class="fbtn ativo" onclick="filtrar('todos',this)">Todos ({{ unidades|length }})</button>
-  <button class="fbtn" onclick="filtrar('bom',this)" style="color:#2e7d32;border-color:#a5d6a7">✅ Bom ({{ unidades|selectattr('status','eq','bom')|list|length }})</button>
-  <button class="fbtn" onclick="filtrar('ruim',this)" style="color:#c62828;border-color:#ef9a9a">❌ Ruim ({{ unidades|selectattr('status','eq','ruim')|list|length }})</button>
+  <button class="fbtn" onclick="filtrar('bom',this)" style="color:#1b7a3d;border-color:#9bdcb0">✅ Bom ({{ unidades|selectattr('status','eq','bom')|list|length }})</button>
+  <button class="fbtn" onclick="filtrar('ruim',this)" style="color:#c0021c;border-color:#f0a9b1">❌ Ruim ({{ unidades|selectattr('status','eq','ruim')|list|length }})</button>
   <input type="text" class="search" placeholder="🔍 Buscar unidade..." oninput="buscar(this.value)">
 </div></div>
 <div class="totais"><div class="totais-grid">
-  <div class="tc"><span class="tc-lbl">Matrículas Totais</span><span class="tc-val">{{ totais.matriculas|toint }}</span><span class="tc-sub">{{ unidades|length }} unidades</span></div>
-  <div class="tc r"><span class="tc-lbl">Alunos Ativos</span><span class="tc-val">{{ totais.ativos|toint }}</span><span class="tc-sub">Retenção: {{ totais.retencao_str }}</span></div>
-  <div class="tc"><span class="tc-lbl">Fat. Comercial</span><span class="tc-val">{{ totais.fat_comercial|brl0 }}</span><span class="tc-sub">Ticket: {{ totais.ticket_str }}</span></div>
-  <div class="tc"><span class="tc-lbl">Fat. Total</span><span class="tc-val">{{ totais.fat_total|brl0 }}</span><span class="tc-sub">carteira</span></div>
-  <div class="tc"><span class="tc-lbl">Cobr. Atual Média</span><span class="tc-val">{{ totais.fin_atual_str }}</span><span class="tc-sub">Meta: 94%</span></div>
-  <div class="tc"><span class="tc-lbl">Frequência Média</span><span class="tc-val">{{ totais.freq_str }}</span><span class="tc-sub">Meta: 75%</span></div>
-  <div class="tc g"><span class="tc-lbl">✅ Boas</span><span class="tc-val">{{ unidades|selectattr('status','eq','bom')|list|length }}</span><span class="tc-sub">≥ 3 metas</span></div>
-  <div class="tc x"><span class="tc-lbl">❌ Ruins</span><span class="tc-val">{{ unidades|selectattr('status','eq','ruim')|list|length }}</span><span class="tc-sub">&lt; 3 metas</span></div>
+  <div class="tc"><span class="tc-ico">🎓</span><span class="tc-lbl">Matrículas Totais</span><span class="tc-val">{{ totais.matriculas|toint }}</span><span class="tc-sub">{{ unidades|length }} unidades</span></div>
+  <div class="tc r"><span class="tc-ico">👥</span><span class="tc-lbl">Alunos Ativos</span><span class="tc-val">{{ totais.ativos|toint }}</span><span class="tc-sub">Retenção: {{ totais.retencao_str }}</span></div>
+  <div class="tc"><span class="tc-ico">💰</span><span class="tc-lbl">Fat. Comercial</span><span class="tc-val">{{ totais.fat_comercial|brl0 }}</span><span class="tc-sub">Ticket: {{ totais.ticket_str }}</span></div>
+  <div class="tc"><span class="tc-ico">🏦</span><span class="tc-lbl">Fat. Total</span><span class="tc-val">{{ totais.fat_total|brl0 }}</span><span class="tc-sub">carteira</span></div>
+  <div class="tc"><span class="tc-ico">📋</span><span class="tc-lbl">Cobr. Atual Média</span><span class="tc-val">{{ totais.fin_atual_str }}</span><span class="tc-sub">Meta: 94%</span></div>
+  <div class="tc"><span class="tc-ico">📈</span><span class="tc-lbl">Frequência Média</span><span class="tc-val">{{ totais.freq_str }}</span><span class="tc-sub">Meta: 75%</span></div>
+  <div class="tc g"><span class="tc-ico">✅</span><span class="tc-lbl">Unidades Boas</span><span class="tc-val">{{ unidades|selectattr('status','eq','bom')|list|length }}</span><span class="tc-sub">≥ 3 metas</span></div>
+  <div class="tc x"><span class="tc-ico">⚠️</span><span class="tc-lbl">Unidades Ruins</span><span class="tc-val">{{ unidades|selectattr('status','eq','ruim')|list|length }}</span><span class="tc-sub">&lt; 3 metas</span></div>
 </div></div>
 <div class="cards"><div class="cards-grid" id="cards-grid">
 {% for u in unidades %}
-<div class="ucard" data-status="{{ u.status }}" data-nome="{{ u.nome|lower }}">
+<a href="/unidade/{{ loop.index0 }}" class="ucard" data-status="{{ u.status }}" data-nome="{{ u.nome|lower }}">
   <div class="chd {{ u.status }}">
     <span class="cnome">{{ u.nome }}</span>
     <span class="sbadge">{%- if u.status=='bom' %}✅ BOM{%- else %}❌ RUIM{%- endif -%}&nbsp;· {{ u.score }}/5</span>
@@ -571,29 +659,27 @@ TEMPLATE = r"""
     <span class="sec-title">📋 Cobrança <span class="sec-tag vf">VF Oficial</span></span>
     <div class="fd3">
       {% set fa = 'ok' if u.fin_atual>=0.94 else ('am' if u.fin_atual>=0.80 else 'bad') %}
-      {% set f3 = 'ok' if u.fin_30>=0.40 else ('am' if u.fin_30>=0.20 else 'bad') %}
-      {% set f6 = 'ok' if u.fin_60>=0.20 else ('am' if u.fin_60>=0.10 else 'bad') %}
       <div class="fd {{ fa }}"><div class="fd-l">Atual</div><div class="fd-p">{{ u.fin_atual|pct }}</div><div class="fd-v">{{ u.valor_atual|brl0 }}</div></div>
-      <div class="fd {{ f3 }}"><div class="fd-l">30 dias</div><div class="fd-p">{{ u.fin_30|pct }}</div><div class="fd-v">{{ u.valor_30|brl0 }}</div></div>
-      <div class="fd {{ f6 }}"><div class="fd-l">60 dias</div><div class="fd-p">{{ u.fin_60|pct }}</div><div class="fd-v">{{ u.valor_60|brl0 }}</div></div>
+      <div class="fd"><div class="fd-l">30 dias</div><div class="fd-p">{{ u.fin_30|pct }}</div><div class="fd-v">{{ u.valor_30|brl0 }}</div></div>
+      <div class="fd"><div class="fd-l">60 dias</div><div class="fd-p">{{ u.fin_60|pct }}</div><div class="fd-v">{{ u.valor_60|brl0 }}</div></div>
     </div>
     <span class="sec-title">💰 Faturamento <span class="sec-tag vf">VF Oficial</span></span>
     <div class="row3">
       <div class="box"><div class="box-lbl">Comercial</div><div class="box-val">{{ u.fat_comercial|brl0 }}</div></div>
-      <div class="box"><div class="box-lbl">Ticket Médio</div><div class="box-val">{{ u.ticket_medio|brl0 }}</div></div>
-      <div class="box"><div class="box-lbl">Média Diária</div><div class="box-val">{{ u.media_diaria|round(1) }}</div></div>
+      <div class="box"><div class="box-lbl">Ticket</div><div class="box-val">{{ u.ticket_medio|brl0 }}</div></div>
+      <div class="box"><div class="box-lbl">Matríc.</div><div class="box-val">{{ u.matriculas|toint }}</div></div>
     </div>
     <span class="sec-title">👥 Alunos <span class="sec-tag mq">Matrícula e Quitação</span></span>
     <div class="row4">
       <div class="box ok"><div class="box-lbl">Ativos</div><div class="box-val">{{ u.ativos|toint }}</div></div>
-      <div class="box {{ 'al' if u.cancelados>20 else '' }}"><div class="box-lbl">Cancelados</div><div class="box-val">{{ u.cancelados|toint }}</div></div>
-      <div class="box {{ 'al' if u.desistentes>50 else '' }}"><div class="box-lbl">Desistentes</div><div class="box-val">{{ u.desistentes|toint }}</div></div>
-      <div class="box {{ 'al' if u.nunca_veio>30 else '' }}"><div class="box-lbl">Nunca Veio</div><div class="box-val">{{ u.nunca_veio|toint }}</div></div>
+      <div class="box {{ 'al' if u.cancelados>20 else '' }}"><div class="box-lbl">Cancel.</div><div class="box-val">{{ u.cancelados|toint }}</div></div>
+      <div class="box {{ 'al' if u.desistentes>50 else '' }}"><div class="box-lbl">Desist.</div><div class="box-val">{{ u.desistentes|toint }}</div></div>
+      <div class="box {{ 'al' if u.nunca_veio>30 else '' }}"><div class="box-lbl">N.Veio</div><div class="box-val">{{ u.nunca_veio|toint }}</div></div>
     </div>
-    <div class="fat-total"><span class="fat-lbl">Faturamento Total (carteira)</span><span class="fat-val">{{ u.fat_total|brl }}</span></div>
-    <a href="/pdf/unidade/{{ loop.index0 }}" target="_blank" class="btn-card-pdf">⬇ Baixar PDF</a>
+    <div class="fat-total"><span class="fat-lbl">Faturamento Total</span><span class="fat-val">{{ u.fat_total|brl }}</span></div>
+    <div class="card-cta">Ver detalhes da unidade ➜</div>
   </div>
-</div>
+</a>
 {% endfor %}
 </div></div>
 {% else %}
@@ -603,24 +689,18 @@ TEMPLATE = r"""
   <div class="land-body"><h3>Carregar arquivos</h3>
     <form method="POST" action="/upload" enctype="multipart/form-data">
       <div class="uprow">
-        <div class="upbox" id="box-excel">
-          <span class="upbox-ico">📊</span>
+        <div class="upbox" id="box-excel"><span class="upbox-ico">📊</span>
           <div class="upbox-txt"><b>1. Planilha Excel</b><span>RC - Núcleo de Inteligência (.xlsx)</span></div>
-          <input type="file" name="planilha" id="in-excel" accept=".xlsx,.xlsm" required
-                 onchange="mark('box-excel',this)">
-        </div>
-        <div class="upbox" id="box-vf">
-          <span class="upbox-ico">📄</span>
-          <div class="upbox-txt"><b>2. Relatório VF</b><span>VF - Fechamento (.pdf) — fonte oficial 30/60 dias</span></div>
-          <input type="file" name="vf" id="in-vf" accept=".pdf" required
-                 onchange="mark('box-vf',this)">
-        </div>
+          <input type="file" name="planilha" id="in-excel" accept=".xlsx,.xlsm" required onchange="mark('box-excel',this)"></div>
+        <div class="upbox" id="box-vf"><span class="upbox-ico">📄</span>
+          <div class="upbox-txt"><b>2. Relatório VF</b><span>VF - Fechamento (.pdf) — oficial 30/60 dias</span></div>
+          <input type="file" name="vf" id="in-vf" accept=".pdf" required onchange="mark('box-vf',this)"></div>
       </div>
       <button type="submit" class="land-btn">⬆ Carregar e Processar</button>
-      {% if msg %}<p style="margin-top:12px;text-align:center;font-size:.85rem;font-weight:600;color:{{ '#c62828' if not msg_ok else '#2e7d32' }}">{{ msg }}</p>{% endif %}
+      {% if msg %}<p style="margin-top:12px;text-align:center;font-size:.85rem;font-weight:700;color:{{ '#c0021c' if not msg_ok else '#1b7a3d' }}">{{ msg }}</p>{% endif %}
     </form>
     <div class="land-hints">
-      <div class="hint"><span class="hint-icon">⚠️</span><span>Os <strong>dois arquivos são obrigatórios</strong>. O VF fornece os valores oficiais de Cobrança Atual/30/60 dias e faturamento.</span></div>
+      <div class="hint"><span class="hint-icon">⚠️</span><span>Os <strong>dois arquivos são obrigatórios</strong>. O VF fornece os valores oficiais de Cobrança Atual/30/60 e faturamento.</span></div>
       <div class="hint"><span class="hint-icon">📋</span><span>O Excel fornece frequência, retenção e situação dos alunos.</span></div>
     </div>
   </div>
@@ -637,36 +717,112 @@ function ap(q){q=q||'';document.querySelectorAll('.ucard').forEach(function(c){c
 """
 
 # ═════════════════════════════════════════════════════════════
+# TEMPLATE DETALHE DA UNIDADE
+# ═════════════════════════════════════════════════════════════
+UNIDADE_TEMPLATE = r"""
+<!DOCTYPE html><html lang="pt-br"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFP – {{ u.nome }}</title><style>__CSS__</style></head><body>
+<div class="hdr"><div class="hdr-in">
+  <div class="logo-wrap"><div class="logo-img"><span>IFP</span></div>
+  <div class="logo-txt"><h1>{{ u.nome }}</h1><p>Detalhamento da unidade</p></div></div>
+  {% if periodo %}<div class="hdr-badge">📅 {{ periodo }}</div>{% endif %}
+</div></div>
+<div class="nav"><div class="nav-in"><a href="/">📊 Painel</a><a href="/ranking">🏆 Ranking Geral</a><a href="/ranking/comercial">💰 Ranking Comercial</a><a href="/ranking/tpcv1">📉 Ranking TPCv1</a></div></div>
+<div class="detail">
+  <a href="/" class="detail-back">⬅ Voltar ao painel</a>
+  <div class="detail-hero">
+    <div class="detail-hero-top {{ u.status }}">
+      <div><h2>{{ u.nome }}</h2><div class="sub">{%- if u.status=='bom' %}Unidade com bom desempenho{%- else %}Unidade abaixo das metas{%- endif -%} · Posição #{{ posicao }} no ranking</div></div>
+      <div class="detail-status"><div class="big">{{ u.score }}/5</div><div class="lbl">{%- if u.status=='bom' %}✅ BOM{%- else %}❌ RUIM{%- endif -%}</div></div>
+    </div>
+  </div>
+  <div class="detail-grid">
+    <div class="dcard">
+      <h4>🎯 Indicadores vs Metas</h4>
+      {% for ind in u.indicators %}
+      <div class="dind">
+        <span class="dind-l">{{ ind.label }}</span>
+        <div class="dind-r">
+          <span class="dmeta">{{ ind.meta }}</span>
+          <div class="dbar"><div class="bar {{ ind.cls }}" style="width:{{ ind.bar|round(1) }}%"></div></div>
+          <span class="dind-v {{ ind.cls }}">{{ ind.display }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="dcard">
+      <h4>📋 Cobrança <span class="sec-tag vf">VF Oficial</span></h4>
+      <div class="dbig-grid">
+        <div class="dbig"><div class="dbig-v {{ 'g' if u.fin_atual>=0.94 else 'r' }}">{{ u.fin_atual|pct }}</div><div class="dbig-l">Atual</div></div>
+        <div class="dbig"><div class="dbig-v">{{ u.fin_30|pct }}</div><div class="dbig-l">30 dias</div></div>
+        <div class="dbig"><div class="dbig-v">{{ u.fin_60|pct }}</div><div class="dbig-l">60 dias</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="detail-grid">
+    <div class="dcard">
+      <h4>💰 Faturamento <span class="sec-tag vf">VF Oficial</span></h4>
+      <div class="dbig-grid">
+        <div class="dbig"><div class="dbig-v">{{ u.fat_comercial|brl0 }}</div><div class="dbig-l">Comercial</div></div>
+        <div class="dbig"><div class="dbig-v">{{ u.ticket_medio|brl0 }}</div><div class="dbig-l">Ticket Médio</div></div>
+        <div class="dbig"><div class="dbig-v">{{ u.matriculas|toint }}</div><div class="dbig-l">Matrículas</div></div>
+        <div class="dbig"><div class="dbig-v g">{{ u.fat_total|brl0 }}</div><div class="dbig-l">Fat. Total</div></div>
+      </div>
+    </div>
+    <div class="dcard">
+      <h4>👥 Alunos <span class="sec-tag mq">Matrícula e Quitação</span></h4>
+      <div class="dbig-grid">
+        <div class="dbig"><div class="dbig-v g">{{ u.ativos|toint }}</div><div class="dbig-l">Ativos</div></div>
+        <div class="dbig"><div class="dbig-v r">{{ u.cancelados|toint }}</div><div class="dbig-l">Cancelados</div></div>
+        <div class="dbig"><div class="dbig-v r">{{ u.desistentes|toint }}</div><div class="dbig-l">Desistentes</div></div>
+        <div class="dbig"><div class="dbig-v">{{ u.nunca_veio|toint }}</div><div class="dbig-l">Nunca Veio</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="detail-actions">
+    <a href="/pdf/unidade/{{ idx }}" target="_blank" class="btn btn-red">⬇ Baixar PDF desta unidade</a>
+    <a href="/ranking" class="btn btn-ghost">🏆 Ver ranking geral</a>
+  </div>
+</div>
+</body></html>
+"""
+
+# ═════════════════════════════════════════════════════════════
 # TEMPLATE RANKING
 # ═════════════════════════════════════════════════════════════
 RANKING_TEMPLATE = r"""
 <!DOCTYPE html><html lang="pt-br"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IFP – Ranking</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<style>__CSS__</style></head><body>
+<title>IFP – {{ titulo }}</title><style>__CSS__</style></head><body>
 <div class="hdr"><div class="hdr-in">
   <div class="logo-wrap"><div class="logo-img"><span>IFP</span></div>
-  <div class="logo-txt"><h1>Ranking de Unidades</h1><p>Instituto de Formação Profissional</p></div></div>
+  <div class="logo-txt"><h1>{{ titulo }}</h1><p>Instituto de Formação Profissional</p></div></div>
   {% if periodo %}<div class="hdr-badge">📅 {{ periodo }}</div>{% endif %}
 </div></div>
-<div class="nav"><div class="nav-in"><a href="/">📊 Painel</a><a href="/ranking" class="ativo">🏆 Ranking</a></div></div>
+<div class="nav"><div class="nav-in">
+  <a href="/">📊 Painel</a>
+  <a href="/ranking" class="{{ 'ativo' if modo=='geral' else '' }}">🏆 Ranking Geral</a>
+  <a href="/ranking/comercial" class="{{ 'ativo' if modo=='comercial' else '' }}">💰 Ranking Comercial</a>
+  <a href="/ranking/tpcv1" class="{{ 'ativo' if modo=='tpcv1' else '' }}">📉 Ranking TPCv1</a>
+</div></div>
 {% if ranking %}
 <div class="toolbar"><div class="toolbar-in">
-  <span class="flabel">🏆 Classificação geral das {{ ranking|length }} unidades por desempenho</span>
+  <span class="flabel">{{ subtitulo }}</span>
   <div style="flex:1"></div>
-  <a href="/pdf/ranking" class="btn btn-red" target="_blank">⬇ Baixar Ranking em PDF</a>
+  <a href="{{ pdf_url }}" class="btn btn-red" target="_blank">⬇ Baixar este Ranking em PDF</a>
 </div></div>
 <div class="rank-wrap">
   <div class="podium">
-    {% if ranking|length>1 %}<div class="podium-card p2"><div class="podium-medal">🥈</div><div class="podium-pos">2º Lugar</div><div class="podium-nome">{{ ranking[1].nome }}</div><div class="podium-score">{{ ranking[1].rank_score }}<small>/100</small></div><div class="podium-meta">{{ ranking[1].score }}/5 metas</div></div>{% else %}<div></div>{% endif %}
-    <div class="podium-card p1"><div class="podium-medal">🥇</div><div class="podium-pos">1º Lugar</div><div class="podium-nome">{{ ranking[0].nome }}</div><div class="podium-score">{{ ranking[0].rank_score }}<small>/100</small></div><div class="podium-meta">{{ ranking[0].score }}/5 metas</div></div>
-    {% if ranking|length>2 %}<div class="podium-card p3"><div class="podium-medal">🥉</div><div class="podium-pos">3º Lugar</div><div class="podium-nome">{{ ranking[2].nome }}</div><div class="podium-score">{{ ranking[2].rank_score }}<small>/100</small></div><div class="podium-meta">{{ ranking[2].score }}/5 metas</div></div>{% else %}<div></div>{% endif %}
+    {% if ranking|length>1 %}<a href="/unidade/{{ ranking[1].idx_orig }}" class="podium-card p2" style="text-decoration:none"><div class="podium-medal">🥈</div><div class="podium-pos">2º Lugar</div><div class="podium-nome">{{ ranking[1].nome }}</div><div class="podium-score">{{ ranking[1].metric_str }}</div><div class="podium-meta">{{ ranking[1].metric_sub }}</div></a>{% else %}<div></div>{% endif %}
+    <a href="/unidade/{{ ranking[0].idx_orig }}" class="podium-card p1" style="text-decoration:none"><div class="podium-medal">🥇</div><div class="podium-pos">1º Lugar</div><div class="podium-nome">{{ ranking[0].nome }}</div><div class="podium-score">{{ ranking[0].metric_str }}</div><div class="podium-meta">{{ ranking[0].metric_sub }}</div></a>
+    {% if ranking|length>2 %}<a href="/unidade/{{ ranking[2].idx_orig }}" class="podium-card p3" style="text-decoration:none"><div class="podium-medal">🥉</div><div class="podium-pos">3º Lugar</div><div class="podium-nome">{{ ranking[2].nome }}</div><div class="podium-score">{{ ranking[2].metric_str }}</div><div class="podium-meta">{{ ranking[2].metric_sub }}</div></a>{% else %}<div></div>{% endif %}
   </div>
   <div class="rank-table">
+    {% if modo=='geral' %}
     <div class="rank-row head"><div>#</div><div>Unidade</div><div class="rank-hide">Matríc.</div><div class="rank-hide">Ticket</div><div class="rank-hide">Cobr.</div><div class="rank-hide">Freq.</div><div class="rank-hide">Retenç.</div><div>Pontos</div><div class="rank-hide">Status</div></div>
     {% for u in ranking %}
-    <div class="rank-row">
+    <a href="/unidade/{{ u.idx_orig }}" class="rank-row {{ 'top' if u.posicao<=3 else '' }}">
       <div class="rank-pos {% if u.posicao==1 %}top1{% elif u.posicao==2 %}top2{% elif u.posicao==3 %}top3{% endif %}">{% if u.posicao==1 %}🥇{% elif u.posicao==2 %}🥈{% elif u.posicao==3 %}🥉{% else %}{{ u.posicao }}{% endif %}</div>
       <div class="rank-nome">{{ u.nome }}</div>
       <div class="rank-cell rank-hide {{ 'g' if u.matriculas>=120 else 'r' }}">{{ u.matriculas|toint }}</div>
@@ -676,9 +832,32 @@ RANKING_TEMPLATE = r"""
       <div class="rank-cell rank-hide {{ 'g' if u.retencao>=0.94 else 'r' }}">{{ u.retencao|pct }}</div>
       <div class="rank-score-cell">{{ u.rank_score }}</div>
       <div class="rank-hide"><span class="rank-badge {{ u.status }}">{{ 'BOM' if u.status=='bom' else 'RUIM' }}</span></div>
-    </div>
+    </a>
     {% endfor %}
+    {% elif modo=='comercial' %}
+    <div class="rank-row head" style="grid-template-columns:56px 1fr minmax(120px,1fr) minmax(80px,120px) minmax(80px,120px)"><div>#</div><div>Unidade</div><div>Fat. Comercial</div><div class="rank-hide">Ticket</div><div class="rank-hide">Matríc.</div></div>
+    {% for u in ranking %}
+    <a href="/unidade/{{ u.idx_orig }}" class="rank-row {{ 'top' if u.pos_crit<=3 else '' }}" style="grid-template-columns:56px 1fr minmax(120px,1fr) minmax(80px,120px) minmax(80px,120px)">
+      <div class="rank-pos {% if u.pos_crit==1 %}top1{% elif u.pos_crit==2 %}top2{% elif u.pos_crit==3 %}top3{% endif %}">{% if u.pos_crit==1 %}🥇{% elif u.pos_crit==2 %}🥈{% elif u.pos_crit==3 %}🥉{% else %}{{ u.pos_crit }}{% endif %}</div>
+      <div class="rank-nome">{{ u.nome }}</div>
+      <div class="rank-score-cell" style="text-align:left">{{ u.fat_comercial|brl }}</div>
+      <div class="rank-cell rank-hide">{{ u.ticket_medio|brl0 }}</div>
+      <div class="rank-cell rank-hide">{{ u.matriculas|toint }}</div>
+    </a>
+    {% endfor %}
+    {% else %}
+    <div class="rank-row head" style="grid-template-columns:56px 1fr minmax(110px,1fr) minmax(90px,140px)"><div>#</div><div>Unidade</div><div>TPCv1</div><div class="rank-hide">Fat. Comercial</div></div>
+    {% for u in ranking %}
+    <a href="/unidade/{{ u.idx_orig }}" class="rank-row {{ 'top' if u.pos_crit<=3 else '' }}" style="grid-template-columns:56px 1fr minmax(110px,1fr) minmax(90px,140px)">
+      <div class="rank-pos {% if u.pos_crit==1 %}top1{% elif u.pos_crit==2 %}top2{% elif u.pos_crit==3 %}top3{% endif %}">{% if u.pos_crit==1 %}🥇{% elif u.pos_crit==2 %}🥈{% elif u.pos_crit==3 %}🥉{% else %}{{ u.pos_crit }}{% endif %}</div>
+      <div class="rank-nome">{{ u.nome }}</div>
+      <div class="rank-score-cell" style="text-align:left">{{ u.tpcv1|pct }}</div>
+      <div class="rank-cell rank-hide">{{ u.fat_comercial|brl0 }}</div>
+    </a>
+    {% endfor %}
+    {% endif %}
   </div>
+  {% if modo=='tpcv1' %}<p style="text-align:center;color:var(--txt2);font-size:.78rem;margin-top:14px;font-weight:600">📉 No TPCv1, <strong>quanto menor melhor</strong> — por isso o 1º lugar é a menor taxa.</p>{% endif %}
 </div>
 {% else %}
 <div class="landing"><div class="land-card"><div class="land-top"><div class="lico">🏆</div><h2>Sem dados</h2><p>Carregue os arquivos no Painel para ver o ranking.</p></div>
@@ -692,34 +871,36 @@ RANKING_TEMPLATE = r"""
 # ═════════════════════════════════════════════════════════════
 PDF_TEMPLATE = r"""
 <!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>IFP – {{ titulo }}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#fff;color:#1a1f36;font-size:11px}
-.ph{background:linear-gradient(135deg,#8b0014,#c0021c);color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.ph-logo{font-size:1.3rem;font-weight:900}.ph-r h2{font-size:.95rem;font-weight:800;text-align:right}.ph-r p{font-size:.68rem;opacity:.85;text-align:right;margin-top:2px}
-.no-print{text-align:center;margin-bottom:12px}.no-print button{border:none;border-radius:8px;padding:9px 24px;font-size:.88rem;font-weight:700;cursor:pointer;margin:0 4px}
-.btn-p{background:#c0021c;color:#fff}.btn-c{background:#1a237e;color:#fff}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;padding:0 16px 16px}
-.ucard{border:1.5px solid #dde1ef;border-radius:10px;overflow:hidden;break-inside:avoid}
-.chd{padding:10px 12px;display:flex;align-items:center;justify-content:space-between}
-.chd.bom{background:linear-gradient(135deg,#1b5e20,#2e7d32);color:#fff}.chd.ruim{background:linear-gradient(135deg,#8b0014,#c0021c);color:#fff}
-.cnome{font-size:.85rem;font-weight:800}.sbadge{font-size:.66rem;font-weight:700;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:2px 8px}
-.cbody{padding:9px 11px;display:flex;flex-direction:column;gap:5px}
-.ind{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:6px}
-.ind.verde{background:#e8f5e9}.ind.amarelo{background:#fff3e0}.ind.vermelho{background:#ffebee}
-.ind-lbl{font-size:.68rem;font-weight:600;color:#5a6282;flex:1}.ind-meta{font-size:.56rem;color:#5a6282;opacity:.7}.ind-val{font-size:.78rem;font-weight:800}
-.ind.verde .ind-val{color:#2e7d32}.ind.amarelo .ind-val{color:#e65100}.ind.vermelho .ind-val{color:#c62828}
-.barwrap{width:42px;height:4px;background:#e0e4f0;border-radius:2px;overflow:hidden}.bar{height:100%;border-radius:2px}
-.bar.verde{background:#43a047}.bar.amarelo{background:#fb8c00}.bar.vermelho{background:#e53935}
-.sec{font-size:.58rem;font-weight:700;color:#5a6282;text-transform:uppercase;padding:4px 0 2px;border-top:1px solid #eee;margin-top:2px}
-.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}.r4{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
-.bx{background:#f4f5f9;border-radius:5px;padding:4px 6px;text-align:center}.bx-l{font-size:.54rem;font-weight:700;color:#5a6282;text-transform:uppercase}.bx-v{font-size:.82rem;font-weight:800;color:#1a237e;margin-top:1px}
-.bx.ok .bx-v{color:#2e7d32}.bx.al .bx-v{color:#c0021c}
-.fat{display:flex;align-items:center;justify-content:space-between;padding:5px 7px;border-radius:6px;background:#e8eaf6;margin-top:3px}.fat-l{font-size:.68rem;font-weight:700;color:#1a237e}.fat-v{font-size:.85rem;font-weight:900;color:#1a237e}
-.rod{text-align:center;color:#999;font-size:.64rem;padding:8px 0 14px;border-top:1px solid #eee;margin:0 16px}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Plus Jakarta Sans',sans-serif;background:#fff;color:#141a36;font-size:11px}
+h2,.bx-v,.fat-v{font-family:'Sora'}
+.ph{background:linear-gradient(120deg,#8b0014,#c0021c 60%,#e30a2a);color:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.ph-l{display:flex;align-items:center;gap:12px}.ph-logo{width:42px;height:42px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Sora';font-weight:800;color:#c0021c;font-size:1rem}
+.ph-r h2{font-size:1rem;font-weight:800;text-align:right}.ph-r p{font-size:.68rem;opacity:.85;text-align:right;margin-top:2px}
+.no-print{text-align:center;margin-bottom:14px}.no-print button{border:none;border-radius:10px;padding:10px 26px;font-size:.88rem;font-weight:700;cursor:pointer;margin:0 4px}
+.btn-p{background:#c0021c;color:#fff}.btn-c{background:#16205e;color:#fff}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 18px 18px}
+.ucard{border:1.5px solid #e2e6f2;border-radius:13px;overflow:hidden;break-inside:avoid}
+.chd{padding:11px 13px;display:flex;align-items:center;justify-content:space-between}
+.chd.bom{background:linear-gradient(135deg,#155e30,#1f9048);color:#fff}.chd.ruim{background:linear-gradient(135deg,#8b0014,#c0021c);color:#fff}
+.cnome{font-size:.88rem;font-weight:800}.sbadge{font-size:.66rem;font-weight:800;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);border-radius:30px;padding:3px 9px}
+.cbody{padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.ind{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px}
+.ind.verde{background:#e7f6ec}.ind.amarelo{background:#fff4e6}.ind.vermelho{background:#fdebed}
+.ind-lbl{font-size:.68rem;font-weight:700;color:#646c8c;flex:1}.ind-meta{font-size:.56rem;color:#646c8c;opacity:.7}.ind-val{font-size:.78rem;font-weight:800}
+.ind.verde .ind-val{color:#1b7a3d}.ind.amarelo .ind-val{color:#c2620a}.ind.vermelho .ind-val{color:#c0021c}
+.barwrap{width:44px;height:5px;background:#e3e7f1;border-radius:3px;overflow:hidden}.bar{height:100%;border-radius:3px}
+.bar.verde{background:#2fad5a}.bar.amarelo{background:#f59020}.bar.vermelho{background:#e53935}
+.sec{font-size:.58rem;font-weight:800;color:#646c8c;text-transform:uppercase;padding:5px 0 2px;border-top:1px dashed #e2e6f2;margin-top:3px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}.r4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.bx{background:#f6f8fc;border-radius:7px;padding:5px 6px;text-align:center;border:1px solid #e2e6f2}.bx-l{font-size:.54rem;font-weight:800;color:#646c8c;text-transform:uppercase}.bx-v{font-size:.84rem;font-weight:800;color:#16205e;margin-top:1px}
+.bx.ok .bx-v{color:#1b7a3d}.bx.al .bx-v{color:#c0021c}
+.fat{display:flex;align-items:center;justify-content:space-between;padding:6px 9px;border-radius:9px;background:linear-gradient(135deg,#eef0fb,#dfe3f7);margin-top:3px}.fat-l{font-size:.68rem;font-weight:800;color:#16205e}.fat-v{font-size:.88rem;font-weight:800;color:#16205e}
+.rod{text-align:center;color:#9aa3b2;font-size:.64rem;padding:10px 0 16px;border-top:1px solid #eee;margin:0 18px}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}}
 </style></head><body>
-<div class="ph"><div class="ph-logo">IFP</div><div class="ph-r"><h2>{{ titulo }}</h2><p>Instituto de Formação Profissional &nbsp;|&nbsp; {{ periodo }}</p></div></div>
+<div class="ph"><div class="ph-l"><div class="ph-logo">IFP</div></div><div class="ph-r"><h2>{{ titulo }}</h2><p>Instituto de Formação Profissional &nbsp;|&nbsp; {{ periodo }}</p></div></div>
 <div class="no-print"><button class="btn-p" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button><button class="btn-c" onclick="window.close()">✕ Fechar</button></div>
 <div class="grid">
 {% for u in unidades %}
@@ -740,32 +921,35 @@ PDF_TEMPLATE = r"""
 
 PDF_RANKING = r"""
 <!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>IFP – Ranking</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#fff;color:#1a1f36;font-size:11px}
-.ph{background:linear-gradient(135deg,#8b0014,#c0021c);color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.ph-logo{font-size:1.3rem;font-weight:900}.ph-r h2{font-size:.95rem;font-weight:800;text-align:right}.ph-r p{font-size:.68rem;opacity:.85;text-align:right;margin-top:2px}
-.no-print{text-align:center;margin-bottom:12px}.no-print button{border:none;border-radius:8px;padding:9px 24px;font-size:.88rem;font-weight:700;cursor:pointer;margin:0 4px}
-.btn-p{background:#c0021c;color:#fff}.btn-c{background:#1a237e;color:#fff}
-.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:12px;align-items:end;max-width:760px;margin:0 auto 20px;padding:0 16px}
-.pc{border-radius:14px;padding:14px 10px;text-align:center;color:#fff}
-.pc.p1{background:linear-gradient(160deg,#f4cf52,#d4af37);padding-top:22px}.pc.p2{background:linear-gradient(160deg,#c3ccd6,#9fa8b5)}.pc.p3{background:linear-gradient(160deg,#e0a96d,#cd7f32)}
-.pc .m{font-size:2rem}.pc .pos{font-size:.65rem;font-weight:800;text-transform:uppercase}.pc .nm{font-size:.95rem;font-weight:900;margin:3px 0 6px}.pc .sc{font-size:1.5rem;font-weight:900}
-table{border-collapse:collapse;width:calc(100% - 32px);margin:0 16px 16px;font-size:10.5px}
-th,td{border:1px solid #e0e4f0;padding:6px 8px;text-align:center}
-th{background:#1a237e;color:#fff;font-size:.62rem;text-transform:uppercase}
-td.nm{text-align:left;font-weight:700}td.pos{font-weight:900;color:#1a237e}td.g{color:#2e7d32;font-weight:700}td.r{color:#c62828;font-weight:700}td.sc{font-weight:900;color:#1a237e}
-tr:nth-child(even){background:#f8f9fc}
-.rod{text-align:center;color:#999;font-size:.64rem;padding:8px 0 14px;border-top:1px solid #eee;margin:0 16px}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Plus Jakarta Sans',sans-serif;background:#fff;color:#141a36;font-size:11px}
+h2,.sc,.nm{font-family:'Sora'}
+.ph{background:linear-gradient(120deg,#8b0014,#c0021c 60%,#e30a2a);color:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.ph-logo{width:42px;height:42px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Sora';font-weight:800;color:#c0021c}
+.ph-r h2{font-size:1rem;font-weight:800;text-align:right}.ph-r p{font-size:.68rem;opacity:.85;text-align:right;margin-top:2px}
+.no-print{text-align:center;margin-bottom:14px}.no-print button{border:none;border-radius:10px;padding:10px 26px;font-size:.88rem;font-weight:700;cursor:pointer;margin:0 4px}
+.btn-p{background:#c0021c;color:#fff}.btn-c{background:#16205e;color:#fff}
+.podium{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:14px;align-items:end;max-width:780px;margin:0 auto 24px;padding:0 18px}
+.pc{border-radius:16px;padding:16px 12px;text-align:center;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.pc.p1{background:linear-gradient(165deg,#f4cf52,#d4af37);padding-top:24px}.pc.p2{background:linear-gradient(165deg,#c7cedb,#9aa3b2)}.pc.p3{background:linear-gradient(165deg,#e0a96d,#cd7f32)}
+.pc .m{font-size:2.2rem}.pc .pos{font-size:.65rem;font-weight:800;text-transform:uppercase}.pc .nm{font-size:1rem;font-weight:800;margin:3px 0 6px}.pc .sc{font-size:1.7rem;font-weight:800}
+table{border-collapse:collapse;width:calc(100% - 36px);margin:0 18px 18px;font-size:10.5px}
+th,td{border:1px solid #e2e6f2;padding:7px 8px;text-align:center}
+th{background:#16205e;color:#fff;font-size:.62rem;text-transform:uppercase}
+td.nm{text-align:left;font-weight:800}td.pos{font-weight:800;color:#16205e}td.g{color:#1b7a3d;font-weight:700}td.r{color:#c0021c;font-weight:700}td.sc{font-weight:800;color:#16205e;font-family:'Sora'}
+tr:nth-child(even){background:#f6f8fc}
+.rod{text-align:center;color:#9aa3b2;font-size:.64rem;padding:10px 0 16px;border-top:1px solid #eee;margin:0 18px}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}}
 </style></head><body>
-<div class="ph"><div class="ph-logo">IFP</div><div class="ph-r"><h2>Ranking de Unidades</h2><p>Instituto de Formação Profissional &nbsp;|&nbsp; {{ periodo }}</p></div></div>
+<div class="ph"><div class="ph-logo">IFP</div><div class="ph-r"><h2>{{ titulo }}</h2><p>Instituto de Formação Profissional &nbsp;|&nbsp; {{ periodo }}</p></div></div>
 <div class="no-print"><button class="btn-p" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button><button class="btn-c" onclick="window.close()">✕ Fechar</button></div>
 <div class="podium">
-  {% if ranking|length>1 %}<div class="pc p2"><div class="m">🥈</div><div class="pos">2º Lugar</div><div class="nm">{{ ranking[1].nome }}</div><div class="sc">{{ ranking[1].rank_score }}</div></div>{% else %}<div></div>{% endif %}
-  <div class="pc p1"><div class="m">🥇</div><div class="pos">1º Lugar</div><div class="nm">{{ ranking[0].nome }}</div><div class="sc">{{ ranking[0].rank_score }}</div></div>
-  {% if ranking|length>2 %}<div class="pc p3"><div class="m">🥉</div><div class="pos">3º Lugar</div><div class="nm">{{ ranking[2].nome }}</div><div class="sc">{{ ranking[2].rank_score }}</div></div>{% else %}<div></div>{% endif %}
+  {% if ranking|length>1 %}<div class="pc p2"><div class="m">🥈</div><div class="pos">2º Lugar</div><div class="nm">{{ ranking[1].nome }}</div><div class="sc">{{ ranking[1].metric_str }}</div></div>{% else %}<div></div>{% endif %}
+  <div class="pc p1"><div class="m">🥇</div><div class="pos">1º Lugar</div><div class="nm">{{ ranking[0].nome }}</div><div class="sc">{{ ranking[0].metric_str }}</div></div>
+  {% if ranking|length>2 %}<div class="pc p3"><div class="m">🥉</div><div class="pos">3º Lugar</div><div class="nm">{{ ranking[2].nome }}</div><div class="sc">{{ ranking[2].metric_str }}</div></div>{% else %}<div></div>{% endif %}
 </div>
+{% if modo=='geral' %}
 <table>
 <tr><th>#</th><th style="text-align:left">Unidade</th><th>Matríc.</th><th>Ticket</th><th>Cobr.Atual</th><th>30d</th><th>60d</th><th>Freq.</th><th>Retenç.</th><th>Pontos</th><th>Status</th></tr>
 {% for u in ranking %}
@@ -783,6 +967,33 @@ tr:nth-child(even){background:#f8f9fc}
 </tr>
 {% endfor %}
 </table>
+{% elif modo=='comercial' %}
+<table>
+<tr><th>#</th><th style="text-align:left">Unidade</th><th style="text-align:left">Faturamento Comercial</th><th>Ticket Médio</th><th>Matrículas</th></tr>
+{% for u in ranking %}
+<tr>
+  <td class="pos">{% if u.pos_crit==1 %}🥇{% elif u.pos_crit==2 %}🥈{% elif u.pos_crit==3 %}🥉{% else %}{{ u.pos_crit }}{% endif %}</td>
+  <td class="nm">{{ u.nome }}</td>
+  <td class="sc" style="text-align:left">{{ u.fat_comercial|brl }}</td>
+  <td>{{ u.ticket_medio|brl0 }}</td>
+  <td>{{ u.matriculas|toint }}</td>
+</tr>
+{% endfor %}
+</table>
+{% else %}
+<table>
+<tr><th>#</th><th style="text-align:left">Unidade</th><th>TPCv1</th><th>Faturamento Comercial</th></tr>
+{% for u in ranking %}
+<tr>
+  <td class="pos">{% if u.pos_crit==1 %}🥇{% elif u.pos_crit==2 %}🥈{% elif u.pos_crit==3 %}🥉{% else %}{{ u.pos_crit }}{% endif %}</td>
+  <td class="nm">{{ u.nome }}</td>
+  <td class="sc">{{ u.tpcv1|pct }}</td>
+  <td>{{ u.fat_comercial|brl0 }}</td>
+</tr>
+{% endfor %}
+</table>
+<p style="text-align:center;color:#646c8c;font-size:.72rem;margin:4px 18px 0;font-weight:600">📉 No TPCv1, quanto menor melhor — o 1º lugar é a menor taxa.</p>
+{% endif %}
 <div class="rod">Gerado pelo sistema IFP Dashboard &nbsp;|&nbsp; {{ periodo }}</div>
 {% if auto_print %}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},800)});</script>{% endif %}
 </body></html>
@@ -814,11 +1025,70 @@ def index():
     return render_template_string(TEMPLATE.replace("__CSS__",CSS),unidades=unidades,totais=totais,
         periodo=periodo,msg=request.args.get("msg",""),msg_ok=request.args.get("ok","1")=="1")
 
+@app.route("/unidade/<int:idx>", methods=["GET"])
+def unidade(idx):
+    data,periodo,_=get_cached_data()
+    if not data or idx>=len(data):
+        return redirect("/?msg=Unidade+não+encontrada&ok=0")
+    u=data[idx]
+    # posição no ranking
+    rk=ranquear(list(data))
+    pos=next((x["posicao"] for x in rk if x["nome"]==u["nome"]),"—")
+    return render_template_string(UNIDADE_TEMPLATE.replace("__CSS__",CSS),
+        u=u,idx=idx,posicao=pos,periodo=periodo)
+
+def _preparar_metricas(rk, modo):
+    """Define metric_str e metric_sub exibidos no pódio para cada modo."""
+    for u in rk:
+        if modo=="geral":
+            u["metric_str"]=f'{u["rank_score"]}'
+            u["metric_sub"]=f'{u["score"]}/5 metas'
+        elif modo=="comercial":
+            u["metric_str"]=fmt_brl0(u.get("fat_comercial",0))
+            u["metric_sub"]=f'{int(u.get("matriculas",0))} matrículas'
+        elif modo=="tpcv1":
+            u["metric_str"]=fmt_pct(u.get("tpcv1",0))
+            u["metric_sub"]="menor é melhor"
+    return rk
+
 @app.route("/ranking", methods=["GET"])
 def ranking():
     data,periodo,_=get_cached_data()
-    rk=ranquear(list(data)) if data else []
-    return render_template_string(RANKING_TEMPLATE.replace("__CSS__",CSS),ranking=rk,periodo=periodo)
+    rk=[]
+    if data:
+        for i,u in enumerate(data): u["idx_orig"]=i
+        rk=_preparar_metricas(ranquear(list(data)),"geral")
+    return render_template_string(RANKING_TEMPLATE.replace("__CSS__",CSS),
+        ranking=rk,periodo=periodo,modo="geral",
+        titulo="Ranking Geral de Unidades",
+        subtitulo="🏆 Classificação geral por desempenho (5 indicadores vs metas)",
+        pdf_url="/pdf/ranking")
+
+@app.route("/ranking/comercial", methods=["GET"])
+def ranking_comercial():
+    data,periodo,_=get_cached_data()
+    rk=[]
+    if data:
+        for i,u in enumerate(data): u["idx_orig"]=i
+        rk=_preparar_metricas(ranquear_por(list(data),"fat_comercial",reverse=True),"comercial")
+    return render_template_string(RANKING_TEMPLATE.replace("__CSS__",CSS),
+        ranking=rk,periodo=periodo,modo="comercial",
+        titulo="Ranking Comercial",
+        subtitulo="💰 Classificação por Faturamento Comercial (maior → menor) — fonte VF",
+        pdf_url="/pdf/ranking/comercial")
+
+@app.route("/ranking/tpcv1", methods=["GET"])
+def ranking_tpcv1():
+    data,periodo,_=get_cached_data()
+    rk=[]
+    if data:
+        for i,u in enumerate(data): u["idx_orig"]=i
+        rk=_preparar_metricas(ranquear_por(list(data),"tpcv1",reverse=False),"tpcv1")
+    return render_template_string(RANKING_TEMPLATE.replace("__CSS__",CSS),
+        ranking=rk,periodo=periodo,modo="tpcv1",
+        titulo="Ranking TPCv1",
+        subtitulo="📉 Classificação por TPCv1 (menor → melhor) — fonte VF",
+        pdf_url="/pdf/ranking/tpcv1")
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -835,7 +1105,6 @@ def upload():
     try:
         eb=f.read(); vb=vf.read()
         unidades=parse_tudo(eb,vb)
-        # período: tenta extrair do nome do VF
         m=re.search(r'(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\w*[_\s]*\d{4}',vf.filename.lower())
         periodo=m.group(0).replace("_"," ").title() if m else vf.filename
         set_cached_data(unidades,periodo,f.filename,wb_bytes=eb)
@@ -864,8 +1133,25 @@ def pdf_unidade(idx):
 def pdf_ranking():
     data,periodo,_=get_cached_data()
     if not data: return redirect("/?msg=Sem+dados&ok=0")
-    rk=ranquear(list(data))
-    return Response(render_template_string(PDF_RANKING,ranking=rk,periodo=periodo or "—",auto_print=True),mimetype="text/html")
+    rk=_preparar_metricas(ranquear(list(data)),"geral")
+    return Response(render_template_string(PDF_RANKING,ranking=rk,periodo=periodo or "—",
+        auto_print=True,modo="geral",titulo="Ranking Geral de Unidades"),mimetype="text/html")
+
+@app.route("/pdf/ranking/comercial")
+def pdf_ranking_comercial():
+    data,periodo,_=get_cached_data()
+    if not data: return redirect("/?msg=Sem+dados&ok=0")
+    rk=_preparar_metricas(ranquear_por(list(data),"fat_comercial",reverse=True),"comercial")
+    return Response(render_template_string(PDF_RANKING,ranking=rk,periodo=periodo or "—",
+        auto_print=True,modo="comercial",titulo="Ranking Comercial"),mimetype="text/html")
+
+@app.route("/pdf/ranking/tpcv1")
+def pdf_ranking_tpcv1():
+    data,periodo,_=get_cached_data()
+    if not data: return redirect("/?msg=Sem+dados&ok=0")
+    rk=_preparar_metricas(ranquear_por(list(data),"tpcv1",reverse=False),"tpcv1")
+    return Response(render_template_string(PDF_RANKING,ranking=rk,periodo=periodo or "—",
+        auto_print=True,modo="tpcv1",titulo="Ranking TPCv1 (menor → melhor)"),mimetype="text/html")
 
 @app.route("/api/dados")
 def api_dados():
