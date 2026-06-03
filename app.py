@@ -3,6 +3,7 @@ import io
 import re
 import traceback
 from collections import defaultdict
+from datetime import datetime
 from flask import Flask, render_template_string, request, jsonify, redirect, Response
 from openpyxl import load_workbook
 
@@ -19,38 +20,30 @@ METAS = {
     "frequencia":       0.75,
     "retencao":         0.94,
 }
-META_MINIMA_BOM = 3   # >= 3 metas → BOM ; senão → RUIM
+META_MINIMA_BOM = 3
 
 # ═════════════════════════════════════════════════════════════
 # FILTROS JINJA2
 # ═════════════════════════════════════════════════════════════
 def fmt_brl(value):
     try:
-        v = float(value)
-        s = f"{v:,.2f}".replace(",","X").replace(".",",").replace("X",".")
+        v = float(value); s = f"{v:,.2f}".replace(",","X").replace(".",",").replace("X",".")
         return f"R$ {s}"
-    except Exception:
-        return "R$ 0,00"
+    except Exception: return "R$ 0,00"
 
 def fmt_brl0(value):
     try:
-        v = float(value)
-        s = f"{v:,.0f}".replace(",",".")
+        v = float(value); s = f"{v:,.0f}".replace(",",".")
         return f"R$ {s}"
-    except Exception:
-        return "R$ 0"
+    except Exception: return "R$ 0"
 
 def fmt_pct(value):
-    try:
-        return f"{float(value)*100:.1f}%"
-    except Exception:
-        return "0,0%"
+    try: return f"{float(value)*100:.1f}%"
+    except Exception: return "0,0%"
 
 def fmt_int(value):
-    try:
-        return str(int(float(value)))
-    except Exception:
-        return "0"
+    try: return str(int(float(value)))
+    except Exception: return "0"
 
 app.jinja_env.filters["brl"]   = fmt_brl
 app.jinja_env.filters["brl0"]  = fmt_brl0
@@ -58,260 +51,204 @@ app.jinja_env.filters["pct"]   = fmt_pct
 app.jinja_env.filters["toint"] = fmt_int
 
 # ═════════════════════════════════════════════════════════════
-# CONVERSÃO ROBUSTA TEXTO → FLOAT
+# CONVERSÃO TEXTO → FLOAT  /  DATAS
 # ═════════════════════════════════════════════════════════════
 def to_float(v, default=0.0):
-    if v is None:
-        return default
-    if isinstance(v, bool):
-        return default
+    if v is None: return default
+    if isinstance(v, bool): return default
     if isinstance(v, (int, float)):
-        f = float(v)
-        return default if (f != f) else f
+        f = float(v); return default if (f != f) else f
     s = str(v).strip()
-    if not s or s in ("-","—","#N/A","#DIV/0!","#VALOR!","N/A","n/a"):
-        return default
+    if not s or s in ("-","—","#N/A","#DIV/0!","#VALOR!","N/A","n/a"): return default
     s = s.replace("R$","").replace("%","").replace("\xa0","").replace(" ","").strip()
-    if not s:
-        return default
-    if re.search(r'\d\.\d{3},', s):
-        s = s.replace(".","").replace(",",".")
-    elif "," in s and "." not in s:
-        s = s.replace(",",".")
-    elif "," in s and "." in s:
-        s = s.replace(",","")
+    if not s: return default
+    if re.search(r'\d\.\d{3},', s): s = s.replace(".","").replace(",",".")
+    elif "," in s and "." not in s: s = s.replace(",",".")
+    elif "," in s and "." in s: s = s.replace(",","")
     s = re.sub(r"[^\d.\-]","",s)
-    if not s or s in ("-","."):
-        return default
-    try:
-        return float(s)
-    except ValueError:
-        return default
+    if not s or s in ("-","."): return default
+    try: return float(s)
+    except ValueError: return default
+
+def parse_data(v):
+    if v is None: return None
+    if isinstance(v, datetime): return v
+    s = str(v).strip()
+    for fmt in ("%d/%m/%Y %H:%M:%S","%d/%m/%Y","%Y-%m-%d %H:%M:%S","%Y-%m-%d"):
+        try: return datetime.strptime(s, fmt)
+        except Exception: pass
+    return None
 
 def celula_str(v):
     return str(v).strip().lower() if v is not None else ""
 
 # ═════════════════════════════════════════════════════════════
-# AGRUPAMENTO DE ABAS POR UNIDADE
-# Os nomes vêm truncados pelo Excel (limite ~31 chars), por isso
-# detectamos pelo TRECHO inicial do sufixo, não pelo nome completo.
+# AGRUPAMENTO DE ABAS (tolerante a truncamento do Excel)
 # ═════════════════════════════════════════════════════════════
 def tipo_da_aba(nome):
-    """Identifica o tipo da aba pelo conteúdo entre parênteses (tolerante a truncamento)."""
     nl = nome.strip().lower()
-    if "(visit" in nl:                     return "visitas"
-    if "(matr" in nl:                      return "matricula_quitacao"
-    if "(frequ" in nl or "(freq" in nl:    return "frequencia"
-    if "(hist" in nl:                      return "historico"
+    if "(visit" in nl:                  return "visitas"
+    if "(matr" in nl:                   return "matricula_quitacao"
+    if "(frequ" in nl or "(freq" in nl: return "frequencia"
+    if "(hist" in nl:                   return "historico"
     return None
 
 def nome_unidade_da_aba(nome):
-    """Extrai 'IFP - Águas Lindas' de 'IFP - Águas Lindas (Visitas)'."""
     pos = nome.rfind("(")
-    if pos > 0:
-        return nome[:pos].strip()
-    return nome.strip()
+    return nome[:pos].strip() if pos > 0 else nome.strip()
 
 def agrupar_abas(wb):
     grupos = {}
     for nome in wb.sheetnames:
         tipo = tipo_da_aba(nome)
-        if tipo and tipo != "historico":   # histórico ignorado
+        if tipo and tipo != "historico":
             unidade = nome_unidade_da_aba(nome)
             grupos.setdefault(unidade, {})[tipo] = wb[nome]
     return grupos
 
-# ═════════════════════════════════════════════════════════════
-# HELPERS DE LEITURA
-# ═════════════════════════════════════════════════════════════
 def ler_linhas(ws, max_rows=20000):
     out = []
     for r in ws.iter_rows(values_only=True):
         out.append(list(r))
-        if len(out) >= max_rows:
-            break
+        if len(out) >= max_rows: break
     return out
 
 def idx_coluna(header, *nomes):
-    """Retorna índice da 1ª coluna cujo nome contém um dos termos."""
     for j, h in enumerate(header):
         for nome in nomes:
-            if nome in h:
-                return j
+            if nome in h: return j
     return None
 
 def header_lower(rows):
-    if not rows:
-        return []
-    return [celula_str(c) for c in rows[0]]
+    return [celula_str(c) for c in rows[0]] if rows else []
 
 # ═════════════════════════════════════════════════════════════
-# PARSER ABA (VISITAS) → matrículas
-# Coluna "Status": conta linhas == "Matrícula"
+# PARSER VISITAS → matrículas
 # ═════════════════════════════════════════════════════════════
 def parse_visitas(ws):
     res = {"matriculas": 0}
     rows = ler_linhas(ws)
-    if len(rows) < 2:
-        return res
+    if len(rows) < 2: return res
     hdr = header_lower(rows)
-    ci_status = idx_coluna(hdr, "status")
-    if ci_status is None:
-        return res
+    ci = idx_coluna(hdr, "status")
+    if ci is None: return res
     mat = 0
     for r in rows[1:]:
-        if not r or ci_status >= len(r):
-            continue
-        st = celula_str(r[ci_status])
-        # "Matrícula" (efetivada). Não conta "Pré Matrícula".
-        if st == "matrícula" or st == "matricula":
-            mat += 1
+        if not r or ci >= len(r): continue
+        st = celula_str(r[ci])
+        if st in ("matrícula","matricula"): mat += 1
     res["matriculas"] = mat
-    print(f"[VISITAS] matrículas={mat}")
     return res
 
 # ═════════════════════════════════════════════════════════════
-# PARSER ABA (MATRÍCULA E QUITAÇÃO) → financeiro, alunos, ticket
+# PARSER MATRÍCULA E QUITAÇÃO → financeiro, alunos, ticket, 30/60d
 # ═════════════════════════════════════════════════════════════
 def parse_matricula_quitacao(ws):
-    res = {
-        "ticket_medio":0.0,"fat_comercial":0.0,"fat_total":0.0,
-        "fin_atual":0.0,"fin_30":0.0,"fin_60":0.0,
-        "valor_atual":0.0,"valor_30":0.0,"valor_60":0.0,
-        "valor_spc":0.0,"valor_cancelados":0.0,
-        "ativos":0,"cancelados":0,"desistentes":0,"nunca_veio":0,
-        "retencao":0.0,"matriculas_mq":0,
-    }
+    res = {"ticket_medio":0.0,"fat_comercial":0.0,"fat_total":0.0,
+           "fin_atual":0.0,"fin_30":0.0,"fin_60":0.0,
+           "valor_atual":0.0,"valor_30":0.0,"valor_60":0.0,
+           "valor_spc":0.0,"valor_cancelados":0.0,
+           "ativos":0,"cancelados":0,"desistentes":0,"nunca_veio":0,
+           "retencao":0.0,"matriculas_mq":0}
     rows = ler_linhas(ws)
-    if len(rows) < 2:
-        return res
+    if len(rows) < 2: return res
     hdr = header_lower(rows)
 
     ci_tipo     = idx_coluna(hdr, "tipo cobrança", "tipo cobranca")
     ci_contrato = idx_coluna(hdr, "contrato")
     ci_status   = idx_coluna(hdr, "status contrato", "status")
-    ci_valor    = idx_coluna(hdr, "valor pago", "valor")
+    ci_pago     = idx_coluna(hdr, "valor pago")
     ci_valorbase= idx_coluna(hdr, "valor")
     ci_quit     = idx_coluna(hdr, "quitação", "quitacao")
     ci_venc     = idx_coluna(hdr, "vencimento")
 
-    # ── Contratos únicos por status (cada contrato conta 1 vez) ──
+    # Contratos únicos por status
     contrato_status = {}
     for r in rows[1:]:
-        if not r:
-            continue
+        if not r: continue
         contr = celula_str(r[ci_contrato]) if ci_contrato is not None and ci_contrato < len(r) else ""
         st    = celula_str(r[ci_status])   if ci_status   is not None and ci_status   < len(r) else ""
-        if contr:
-            # mantém o status mais recente visto
-            contrato_status[contr] = st
-
+        if contr: contrato_status[contr] = st
     sc = defaultdict(int)
     for st in contrato_status.values():
         if "ativo" in st or "aprovad" in st or "matrícula" in st or "matricula" in st or "resgate" in st:
             sc["ativo"] += 1
-        elif "nunca" in st:
-            sc["nunca_veio"] += 1
-        elif "desist" in st:
-            sc["desistente"] += 1
-        elif "cancel" in st:
-            sc["cancelado"] += 1
-        elif "tranc" in st:
-            sc["trancado"] += 1
-    res["ativos"]      = sc["ativo"]
-    res["cancelados"]  = sc["cancelado"]
-    res["desistentes"] = sc["desistente"]
-    res["nunca_veio"]  = sc["nunca_veio"]
+        elif "nunca" in st:   sc["nunca_veio"] += 1
+        elif "desist" in st:  sc["desistente"] += 1
+        elif "cancel" in st:  sc["cancelado"] += 1
+        elif "tranc" in st:   sc["trancado"] += 1
+    res["ativos"]=sc["ativo"]; res["cancelados"]=sc["cancelado"]
+    res["desistentes"]=sc["desistente"]; res["nunca_veio"]=sc["nunca_veio"]
+    base = sc["ativo"]+sc["cancelado"]+sc["desistente"]
+    res["retencao"] = (sc["ativo"]/base) if base>0 else 0.0
 
-    # Retenção = ativos / (ativos + cancelados + desistentes)
-    base = sc["ativo"] + sc["cancelado"] + sc["desistente"]
-    res["retencao"] = (sc["ativo"] / base) if base > 0 else 0.0
-
-    # ── Ticket médio = média do Valor nas linhas tipo "Matricula" ──
+    # Ticket médio
     tickets = []
     for r in rows[1:]:
-        if not r or ci_tipo is None or ci_tipo >= len(r):
-            continue
+        if not r or ci_tipo is None or ci_tipo >= len(r): continue
         if celula_str(r[ci_tipo]) == "matricula":
             v = to_float(r[ci_valorbase]) if ci_valorbase is not None and ci_valorbase < len(r) else 0
-            if v > 0:
-                tickets.append(v)
+            if v>0: tickets.append(v)
     res["ticket_medio"]  = (sum(tickets)/len(tickets)) if tickets else 0.0
     res["matriculas_mq"] = len(tickets)
 
-    # ── Faturamento: soma de Valor Pago de todas as linhas ──
+    # Faturamento total = soma valor pago
     fat = 0.0
     for r in rows[1:]:
-        if not r or ci_valor is None or ci_valor >= len(r):
-            continue
-        fat += to_float(r[ci_valor])
-    res["fat_total"]     = fat
-    res["fat_comercial"] = fat   # mesmo valor; ajuste se houver coluna separada
+        if not r or ci_pago is None or ci_pago >= len(r): continue
+        fat += to_float(r[ci_pago])
+    res["fat_total"] = fat; res["fat_comercial"] = fat
 
-    # ── Cobrança: valor efetivamente pago / valor devido das parcelas ──
-    soma_devido = 0.0; soma_pago = 0.0
-    ci_pago = idx_coluna(hdr, "valor pago")
+    # Cobrança Atual = pago / devido ; 30/60d = pago com atraso >= 30/60 dias
+    dev=pago=p30=p60=0.0
     for r in rows[1:]:
-        if not r or ci_tipo is None or ci_tipo >= len(r):
-            continue
-        if celula_str(r[ci_tipo]) != "parcela":
-            continue
-        devido = to_float(r[ci_valorbase]) if ci_valorbase is not None and ci_valorbase < len(r) else 0
-        pago   = to_float(r[ci_pago]) if ci_pago is not None and ci_pago < len(r) else 0
-        if devido > 0:
-            soma_devido += devido
-            soma_pago   += pago
-    res["fin_atual"]   = (soma_pago / soma_devido) if soma_devido > 0 else 0.0
-    res["valor_atual"] = soma_pago
-
-    print(f"[MQ] ativos={res['ativos']} cancel={res['cancelados']} desist={res['desistentes']} "
-          f"ticket={res['ticket_medio']:.0f} fin_atual={res['fin_atual']:.3f} "
-          f"ret={res['retencao']:.3f} fat={res['fat_total']:.0f}")
+        if not r or ci_tipo is None or ci_tipo >= len(r): continue
+        if celula_str(r[ci_tipo]) != "parcela": continue
+        vd = to_float(r[ci_valorbase]) if ci_valorbase is not None and ci_valorbase < len(r) else 0
+        vp = to_float(r[ci_pago]) if ci_pago is not None and ci_pago < len(r) else 0
+        if vd<=0: continue
+        dev += vd; pago += vp
+        venc = parse_data(r[ci_venc]) if ci_venc is not None and ci_venc < len(r) else None
+        quit = parse_data(r[ci_quit]) if ci_quit is not None and ci_quit < len(r) else None
+        if venc and quit:
+            atraso = (quit - venc).days
+            if atraso >= 30: p30 += vp
+            if atraso >= 60: p60 += vp
+    res["fin_atual"]   = (pago/dev) if dev>0 else 0.0
+    res["valor_atual"] = pago
+    res["fin_30"]      = (p30/dev) if dev>0 else 0.0
+    res["valor_30"]    = p30
+    res["fin_60"]      = (p60/dev) if dev>0 else 0.0
+    res["valor_60"]    = p60
     return res
 
 # ═════════════════════════════════════════════════════════════
-# PARSER ABA (FREQUÊNCIA) → freq ponderada presentes/alunos
+# PARSER FREQUÊNCIA → presentes/alunos ponderado (com filtro outlier)
 # ═════════════════════════════════════════════════════════════
 def parse_frequencia(ws):
     rows = ler_linhas(ws)
-    if len(rows) < 2:
-        return 0.0
+    if len(rows) < 2: return 0.0
     hdr = header_lower(rows)
     ci_al = idx_coluna(hdr, "alunos")
     ci_pr = idx_coluna(hdr, "presentes", "presente")
     ci_fq = idx_coluna(hdr, "frequência", "frequencia")
-
-    # Estratégia 1: ponderada presentes/alunos, ignorando outliers
-    # (cada turma tem no máximo ~100 alunos; valores acima são lixo/datas)
     if ci_al is not None and ci_pr is not None:
-        tot_al = 0.0; tot_pr = 0.0; n = 0
+        tot_al=tot_pr=0.0; n=0
         for r in rows[1:]:
-            if not r:
-                continue
-            a = to_float(r[ci_al]) if ci_al < len(r) else 0
-            p = to_float(r[ci_pr]) if ci_pr < len(r) else 0
-            # filtra outliers: turma válida tem 1-200 alunos e presentes <= alunos
+            if not r: continue
+            a = to_float(r[ci_al]) if ci_al<len(r) else 0
+            p = to_float(r[ci_pr]) if ci_pr<len(r) else 0
             if 0 < a <= 200 and 0 <= p <= a:
-                tot_al += a; tot_pr += p; n += 1
-        if tot_al > 0 and n > 0:
-            freq = tot_pr / tot_al
-            print(f"[FREQ] ponderada presentes/alunos = {freq:.3f} ({n} turmas)")
-            return freq
-
-    # Estratégia 2: média simples da coluna Frequência (já vem como '70,00 %')
+                tot_al+=a; tot_pr+=p; n+=1
+        if tot_al>0 and n>0:
+            return tot_pr/tot_al
     if ci_fq is not None:
-        vals = []
+        vals=[]
         for r in rows[1:]:
-            if not r or ci_fq >= len(r):
-                continue
-            v = to_float(r[ci_fq])
-            # frequência válida entre 0 e 1 (após to_float que divide % por 100)
-            if 0 < v <= 1.0:
-                vals.append(v)
-        if vals:
-            freq = sum(vals)/len(vals)
-            print(f"[FREQ] média coluna Frequência = {freq:.3f} ({len(vals)} valores)")
-            return freq
+            if not r or ci_fq>=len(r): continue
+            v=to_float(r[ci_fq])
+            if 0<v<=1.0: vals.append(v)
+        if vals: return sum(vals)/len(vals)
     return 0.0
 
 # ═════════════════════════════════════════════════════════════
@@ -320,69 +257,36 @@ def parse_frequencia(ws):
 def parse_sheet_from_wb(wb):
     grupos = agrupar_abas(wb)
     if not grupos:
-        raise KeyError(
-            f"Nenhuma aba reconhecida. Esperado abas como 'IFP - Unidade (Visitas)'. "
-            f"Encontradas: {wb.sheetnames[:10]}"
-        )
-
+        raise KeyError(f"Nenhuma aba reconhecida. Encontradas: {wb.sheetnames[:10]}")
     unidades = []
     for nome_unidade, abas in sorted(grupos.items()):
-        print(f"\n[PARSER] ═══════ {nome_unidade} ═══════")
-        u = {
-            "nome": nome_unidade,
-            "matriculas":0.0,"fat_comercial":0.0,"ticket_medio":0.0,
-            "media_diaria":0.0,"fat_total":0.0,
-            "fin_atual":0.0,"fin_30":0.0,"fin_60":0.0,
-            "valor_atual":0.0,"valor_30":0.0,"valor_60":0.0,
-            "valor_spc":0.0,"valor_cancelados":0.0,
-            "ativos":0.0,"cancelados":0.0,"desistentes":0.0,"nunca_veio":0.0,
-            "m1_v1":0.0,"m1_v2":0.0,"frequencia":0.0,"retencao":0.0,
-        }
-
-        # ── VISITAS → matrículas ──
+        u = {"nome": nome_unidade,
+             "matriculas":0.0,"fat_comercial":0.0,"ticket_medio":0.0,
+             "media_diaria":0.0,"fat_total":0.0,
+             "fin_atual":0.0,"fin_30":0.0,"fin_60":0.0,
+             "valor_atual":0.0,"valor_30":0.0,"valor_60":0.0,
+             "valor_spc":0.0,"valor_cancelados":0.0,
+             "ativos":0.0,"cancelados":0.0,"desistentes":0.0,"nunca_veio":0.0,
+             "m1_v1":0.0,"m1_v2":0.0,"frequencia":0.0,"retencao":0.0}
         if "visitas" in abas:
-            d = parse_visitas(abas["visitas"])
-            u["matriculas"] = d["matriculas"]
-
-        # ── MATRÍCULA E QUITAÇÃO → financeiro, alunos, ticket, faturamento ──
+            u["matriculas"] = parse_visitas(abas["visitas"])["matriculas"]
         if "matricula_quitacao" in abas:
             d = parse_matricula_quitacao(abas["matricula_quitacao"])
-            u["ticket_medio"]     = d["ticket_medio"]
-            u["fat_comercial"]    = d["fat_comercial"]
-            u["fat_total"]        = d["fat_total"]
-            u["fin_atual"]        = d["fin_atual"]
-            u["fin_30"]           = d["fin_30"]
-            u["fin_60"]           = d["fin_60"]
-            u["valor_atual"]      = d["valor_atual"]
-            u["valor_30"]         = d["valor_30"]
-            u["valor_60"]         = d["valor_60"]
-            u["valor_spc"]        = d["valor_spc"]
-            u["valor_cancelados"] = d["valor_cancelados"]
-            u["ativos"]           = d["ativos"]
-            u["cancelados"]       = d["cancelados"]
-            u["desistentes"]      = d["desistentes"]
-            u["nunca_veio"]       = d["nunca_veio"]
-            u["retencao"]         = d["retencao"]
-            # Se Visitas não trouxe matrículas, usa as da MQ
+            for k in ["ticket_medio","fat_comercial","fat_total","fin_atual","fin_30",
+                      "fin_60","valor_atual","valor_30","valor_60","valor_spc",
+                      "valor_cancelados","ativos","cancelados","desistentes",
+                      "nunca_veio","retencao"]:
+                u[k] = d[k]
             if u["matriculas"] == 0 and d["matriculas_mq"] > 0:
                 u["matriculas"] = d["matriculas_mq"]
-
-        # ── FREQUÊNCIA → freq ponderada ──
         if "frequencia" in abas:
             f = parse_frequencia(abas["frequencia"])
-            if f > 0:
-                u["frequencia"] = f
-
-        print(f"[PARSER] FINAL mat={u['matriculas']} tkt={u['ticket_medio']:.0f} "
-              f"fin={u['fin_atual']:.3f} freq={u['frequencia']:.3f} ret={u['retencao']:.3f} "
-              f"ativos={u['ativos']} cancel={u['cancelados']} desist={u['desistentes']}")
-
+            if f > 0: u["frequencia"] = f
         unidades.append(calcular_score(u))
-
     return unidades
 
 # ═════════════════════════════════════════════════════════════
-# SCORE — apenas BOM ou RUIM
+# SCORE + RANKING
 # ═════════════════════════════════════════════════════════════
 def calcular_score(u):
     score = 0
@@ -394,30 +298,43 @@ def calcular_score(u):
     u["score"] = score
     u["status"] = "bom" if score >= META_MINIMA_BOM else "ruim"
 
+    # Pontuação contínua para ranking (0-100): média ponderada dos indicadores normalizados
+    def n(val, meta, cap=2.0):
+        return min(val/meta, cap) if meta else 0
+    pts = (
+        n(u["matriculas"],   METAS["matriculas"])   * 20 +
+        n(u["ticket_medio"], METAS["ticket_medio"]) * 20 +
+        n(u["fin_atual"],    METAS["financeiro_atual"]) * 20 +
+        n(u["frequencia"],   METAS["frequencia"])   * 20 +
+        n(u["retencao"],     METAS["retencao"])     * 20
+    ) / 2.0  # divide por 2 (cap=2) → escala 0-100
+    u["rank_score"] = round(pts, 1)
+
     def bar(val, mx): return 0 if mx==0 else max(0.0, min(100.0, val/mx*100))
     def cls(val, meta):
-        if val >= meta:         return "verde"
-        if val >= meta*0.85:    return "amarelo"
+        if val >= meta: return "verde"
+        if val >= meta*0.85: return "amarelo"
         return "vermelho"
-
     u["indicators"] = [
-        {"label":"Matrículas",    "display":str(int(u["matriculas"])),
-         "bar":bar(u["matriculas"],200),
-         "cls":cls(u["matriculas"],METAS["matriculas"]),    "meta":"Meta: 120"},
-        {"label":"Ticket Médio",  "display":fmt_brl0(u["ticket_medio"]),
-         "bar":bar(u["ticket_medio"],400),
-         "cls":cls(u["ticket_medio"],METAS["ticket_medio"]), "meta":"Meta: R$ 199"},
-        {"label":"Cobrança Atual","display":fmt_pct(u["fin_atual"]),
-         "bar":u["fin_atual"]*100,
-         "cls":cls(u["fin_atual"],METAS["financeiro_atual"]), "meta":"Meta: 94%"},
-        {"label":"Frequência",    "display":fmt_pct(u["frequencia"]),
-         "bar":u["frequencia"]*100,
-         "cls":cls(u["frequencia"],METAS["frequencia"]),    "meta":"Meta: 75%"},
-        {"label":"Retenção",      "display":fmt_pct(u["retencao"]),
-         "bar":u["retencao"]*100,
-         "cls":cls(u["retencao"],METAS["retencao"]),        "meta":"Meta: 94%"},
+        {"label":"Matrículas","display":str(int(u["matriculas"])),"bar":bar(u["matriculas"],200),
+         "cls":cls(u["matriculas"],METAS["matriculas"]),"meta":"Meta: 120"},
+        {"label":"Ticket Médio","display":fmt_brl0(u["ticket_medio"]),"bar":bar(u["ticket_medio"],400),
+         "cls":cls(u["ticket_medio"],METAS["ticket_medio"]),"meta":"Meta: R$ 199"},
+        {"label":"Cobrança Atual","display":fmt_pct(u["fin_atual"]),"bar":u["fin_atual"]*100,
+         "cls":cls(u["fin_atual"],METAS["financeiro_atual"]),"meta":"Meta: 94%"},
+        {"label":"Frequência","display":fmt_pct(u["frequencia"]),"bar":u["frequencia"]*100,
+         "cls":cls(u["frequencia"],METAS["frequencia"]),"meta":"Meta: 75%"},
+        {"label":"Retenção","display":fmt_pct(u["retencao"]),"bar":u["retencao"]*100,
+         "cls":cls(u["retencao"],METAS["retencao"]),"meta":"Meta: 94%"},
     ]
     return u
+
+def ranquear(unidades):
+    """Retorna lista ordenada por rank_score (desc) com posição."""
+    ordenadas = sorted(unidades, key=lambda u: (u["rank_score"], u["score"], u["fat_total"]), reverse=True)
+    for i, u in enumerate(ordenadas):
+        u["posicao"] = i + 1
+    return ordenadas
 
 def load_data_from_bytes(file_bytes):
     wb = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
@@ -427,28 +344,23 @@ def detect_periodo(file_bytes):
     try:
         wb = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
         for nome in wb.sheetnames[:5]:
-            if tipo_da_aba(nome) != "frequencia":
-                continue
+            if tipo_da_aba(nome) != "frequencia": continue
             ws = wb[nome]
             for row in ws.iter_rows(min_row=2, max_row=4, values_only=True):
                 for cell in row:
                     if cell and "/" in str(cell):
                         val = str(cell).strip()
-                        meses = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
-                        if any(m in val.lower() for m in meses) and len(val) < 20:
+                        meses=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
+                        if any(m in val.lower() for m in meses) and len(val)<20:
                             return val
-    except Exception:
-        pass
+    except Exception: pass
     return ""
 
 # ═════════════════════════════════════════════════════════════
 # CACHE
 # ═════════════════════════════════════════════════════════════
 _cache = {"data":None,"periodo":"","filename":"","wb_bytes":None}
-
-def get_cached_data():
-    return _cache["data"], _cache["periodo"], _cache["filename"]
-
+def get_cached_data(): return _cache["data"], _cache["periodo"], _cache["filename"]
 def set_cached_data(data, periodo="", filename="", wb_bytes=None):
     _cache.update({"data":data,"periodo":periodo,"filename":filename,"wb_bytes":wb_bytes})
 
@@ -457,36 +369,26 @@ def set_cached_data(data, periodo="", filename="", wb_bytes=None):
 # ═════════════════════════════════════════════════════════════
 @app.route("/debug")
 def debug_index():
-    if not _cache["wb_bytes"]:
-        return "<h2>Nenhuma planilha carregada</h2>", 404
+    if not _cache["wb_bytes"]: return "<h2>Nenhuma planilha</h2>", 404
     wb = load_workbook(io.BytesIO(_cache["wb_bytes"]), read_only=True, data_only=True)
     grupos = agrupar_abas(wb)
-    links = "".join(
-        f'<li><a href="/debug/{k}">{k}</a> — {list(v.keys())}</li>'
-        for k, v in sorted(grupos.items())
-    )
+    links = "".join(f'<li><a href="/debug/{k}">{k}</a> — {list(v.keys())}</li>' for k,v in sorted(grupos.items()))
     return f"<h2>Unidades ({len(grupos)})</h2><ul style='font-family:monospace'>{links}</ul>"
 
 @app.route("/debug/<path:unidade_nome>")
 def debug_unidade(unidade_nome):
-    if not _cache["wb_bytes"]:
-        return "<h2>Nenhuma planilha carregada</h2>", 404
+    if not _cache["wb_bytes"]: return "<h2>Nenhuma planilha</h2>", 404
     wb = load_workbook(io.BytesIO(_cache["wb_bytes"]), read_only=True, data_only=True)
     grupos = agrupar_abas(wb)
-    found = None
-    for k in grupos:
-        if unidade_nome.lower() in k.lower():
-            found = k; break
-    if not found:
-        return f"<h2>Não encontrada</h2><p>{list(grupos.keys())}</p>", 404
-    html = [f"<h2 style='font-family:monospace'>Debug: {found}</h2>",
-            "<style>table{border-collapse:collapse;font-size:10px;font-family:monospace;margin-bottom:20px}"
-            "td,th{border:1px solid #ccc;padding:2px 4px;max-width:140px;overflow:hidden}"
-            "th{background:#1a237e;color:#fff}</style>"]
+    found = next((k for k in grupos if unidade_nome.lower() in k.lower()), None)
+    if not found: return f"<h2>Não encontrada</h2><p>{list(grupos.keys())}</p>", 404
+    html=[f"<h2 style='font-family:monospace'>Debug: {found}</h2>",
+          "<style>table{border-collapse:collapse;font-size:10px;font-family:monospace;margin-bottom:20px}"
+          "td,th{border:1px solid #ccc;padding:2px 4px;max-width:140px;overflow:hidden}th{background:#1a237e;color:#fff}</style>"]
     for tipo, ws in grupos[found].items():
-        rows = ler_linhas(ws, max_rows=8)
+        rows = ler_linhas(ws, max_rows=6)
         html.append(f"<h3>Aba: {tipo}</h3><table>")
-        for i, row in enumerate(rows):
+        for i,row in enumerate(rows):
             if not row: continue
             html.append(f"<tr><th>L{i}</th>")
             for cell in row[:28]:
@@ -496,17 +398,13 @@ def debug_unidade(unidade_nome):
     return "".join(html)
 
 # ═════════════════════════════════════════════════════════════
-# TEMPLATE PRINCIPAL
+# CSS COMPARTILHADO
 # ═════════════════════════════════════════════════════════════
-TEMPLATE = r"""
-<!DOCTYPE html><html lang="pt-br"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IFP – Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<style>
+CSS = r"""
 :root{--red:#c0021c;--red-dk:#8b0014;--red-lt:rgba(192,2,28,.07);--blue:#1a237e;--blue-lt:#3949ab;
 --bg:#f2f4f8;--borda:#dde1ef;--txt:#1a1f36;--txt2:#5a6282;--verde:#2e7d32;--verde-lt:#43a047;--verde-bg:#e8f5e9;
---amber:#e65100;--amber-lt:#fb8c00;--amber-bg:#fff3e0;--rose:#c62828;--rose-bg:#ffebee;--r:14px;--shadow:0 2px 16px rgba(26,35,126,.10)}
+--amber:#e65100;--amber-lt:#fb8c00;--amber-bg:#fff3e0;--rose:#c62828;--rose-bg:#ffebee;
+--ouro:#d4af37;--prata:#9fa8b5;--bronze:#cd7f32;--r:14px;--shadow:0 2px 16px rgba(26,35,126,.10)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
 .hdr{background:linear-gradient(120deg,var(--red-dk),var(--red) 60%,#d40020);color:#fff;box-shadow:0 4px 24px rgba(192,2,28,.35)}
@@ -517,18 +415,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 .logo-txt h1{font-size:1.15rem;font-weight:800;color:#fff;line-height:1.2}
 .logo-txt p{font-size:.72rem;opacity:.85;margin-top:2px}
 .hdr-badge{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);border-radius:20px;padding:6px 16px;font-size:.8rem;font-weight:700;color:#fff}
-.toolbar{background:var(--blue);border-bottom:3px solid var(--red);padding:0 24px}
-.toolbar-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 0}
-.toolbar form{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.toolbar label{font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85)}
-.toolbar input[type=file]{flex:1;min-width:180px;font-size:.82rem;padding:7px 10px;border:1.5px solid rgba(255,255,255,.25);border-radius:8px;background:rgba(255,255,255,.08);color:#fff}
-.toolbar input[type=file]::-webkit-file-upload-button{background:var(--red);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:.8rem;font-weight:700;cursor:pointer;margin-right:8px}
-.btn{border:none;border-radius:8px;font:inherit;font-weight:700;cursor:pointer;padding:8px 18px;font-size:.84rem}
+.nav{background:var(--blue);border-bottom:3px solid var(--red);padding:0 24px}
+.nav-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0}
+.nav a{padding:12px 18px;color:rgba(255,255,255,.7);text-decoration:none;font-size:.86rem;font-weight:700;border-bottom:3px solid transparent;margin-bottom:-3px}
+.nav a:hover{color:#fff}
+.nav a.ativo{color:#fff;border-bottom-color:#fff}
+.toolbar{background:#fff;border-bottom:1px solid var(--borda);padding:10px 24px}
+.toolbar-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.toolbar label{font-size:.82rem;font-weight:700;color:var(--txt2)}
+.toolbar input[type=file]{flex:1;min-width:160px;font-size:.82rem;padding:6px 10px;border:1.5px solid var(--borda);border-radius:8px;background:#f8f9fc;color:var(--txt)}
+.toolbar input[type=file]::-webkit-file-upload-button{background:var(--red);color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:.8rem;font-weight:700;cursor:pointer;margin-right:8px}
+.btn{border:none;border-radius:8px;font:inherit;font-weight:700;cursor:pointer;padding:8px 18px;font-size:.84rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red-dk)}
-.btn-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.45);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-.btn-outline:hover{background:rgba(255,255,255,.1)}
-.btn-debug{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);text-decoration:none;font-size:.75rem;padding:6px 12px;border-radius:6px}
-.smsg{font-size:.8rem;font-weight:600}.smsg.ok{color:#a5d6a7}.smsg.err{color:#ef9a9a}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue-lt)}
+.smsg{font-size:.8rem;font-weight:600}.smsg.ok{color:#2e7d32}.smsg.err{color:#c62828}
 .filtros{background:#fff;border-bottom:1px solid var(--borda);padding:10px 24px}
 .filtros-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .flabel{font-size:.8rem;font-weight:700;color:var(--blue)}
@@ -563,7 +463,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 .bar{height:100%;border-radius:3px}.bar.verde{background:var(--verde-lt)}.bar.amarelo{background:var(--amber-lt)}.bar.vermelho{background:#e53935}
 .sec-title{font-size:.65rem;font-weight:700;color:var(--txt2);text-transform:uppercase;padding:6px 0 2px;border-top:1px solid var(--borda);margin-top:4px;display:flex;align-items:center;gap:5px}
 .sec-tag{font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:8px;text-transform:none;letter-spacing:0}
-.sec-tag.mq{background:#e8eaf6;color:var(--blue)}.sec-tag.vis{background:var(--verde-bg);color:var(--verde)}
+.sec-tag.mq{background:#e8eaf6;color:var(--blue)}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .box{background:#f4f5f9;border-radius:7px;padding:6px 7px;text-align:center}
 .box-lbl{font-size:.58rem;font-weight:700;color:var(--txt2);text-transform:uppercase}
@@ -594,23 +494,64 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 .land-hints{margin-top:20px;display:flex;flex-direction:column;gap:8px}
 .hint{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:#f4f5f9;font-size:.8rem;color:var(--txt2)}
 .hint-icon{font-size:1.1rem}
-@media(max-width:640px){.cards-grid{grid-template-columns:1fr}.totais-grid{grid-template-columns:repeat(2,1fr)}.row3,.fd3{grid-template-columns:1fr 1fr}.row4{grid-template-columns:repeat(2,1fr)}}
-@media print{.hdr,.toolbar,.filtros,.totais,.btn-card-pdf,.btn-outline,.btn-debug{display:none!important}.cards{margin:0;padding:0}.cards-grid{grid-template-columns:repeat(2,1fr)}.ucard{break-inside:avoid;box-shadow:none;border:1px solid #ccc}body{background:#fff}}
-</style></head><body>
+/* ===== RANKING ===== */
+.rank-wrap{max-width:1100px;margin:24px auto 50px;padding:0 24px}
+.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:14px;align-items:end;margin-bottom:28px}
+.podium-card{border-radius:16px;padding:18px 14px;text-align:center;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.18);position:relative}
+.podium-card.p1{background:linear-gradient(160deg,#f4cf52,#d4af37);padding-top:28px}
+.podium-card.p2{background:linear-gradient(160deg,#c3ccd6,#9fa8b5)}
+.podium-card.p3{background:linear-gradient(160deg,#e0a96d,#cd7f32)}
+.podium-medal{font-size:2.4rem;line-height:1;margin-bottom:6px}
+.podium-pos{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.9}
+.podium-nome{font-size:1.05rem;font-weight:900;margin:4px 0 8px;line-height:1.15}
+.podium-score{font-size:1.9rem;font-weight:900}
+.podium-score small{font-size:.7rem;font-weight:700;opacity:.85}
+.podium-meta{font-size:.72rem;font-weight:700;margin-top:6px;background:rgba(255,255,255,.2);border-radius:10px;padding:3px 8px;display:inline-block}
+.rank-table{background:#fff;border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.rank-row{display:grid;grid-template-columns:54px 1fr repeat(6,minmax(60px,90px)) 80px;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--borda);font-size:.82rem}
+.rank-row.head{background:var(--blue);color:#fff;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}
+.rank-row:last-child{border-bottom:none}
+.rank-row:not(.head):hover{background:#f8f9fc}
+.rank-pos{font-weight:900;font-size:1rem;color:var(--blue);text-align:center}
+.rank-pos.top1{color:#d4af37}.rank-pos.top2{color:#9fa8b5}.rank-pos.top3{color:#cd7f32}
+.rank-nome{font-weight:700;display:flex;align-items:center;gap:7px}
+.rank-medal{font-size:1.1rem}
+.rank-cell{text-align:center;font-weight:700}
+.rank-cell.g{color:var(--verde)}.rank-cell.r{color:var(--rose)}
+.rank-score-cell{text-align:center;font-weight:900;color:var(--blue);font-size:.95rem}
+.rank-badge{font-size:.6rem;font-weight:800;padding:2px 8px;border-radius:10px}
+.rank-badge.bom{background:var(--verde-bg);color:var(--verde)}
+.rank-badge.ruim{background:var(--rose-bg);color:var(--rose)}
+@media(max-width:900px){.rank-row{grid-template-columns:40px 1fr 70px 70px;font-size:.74rem}
+.rank-hide{display:none}}
+@media(max-width:640px){.cards-grid{grid-template-columns:1fr}.totais-grid{grid-template-columns:repeat(2,1fr)}.row3,.fd3{grid-template-columns:1fr 1fr}.row4{grid-template-columns:repeat(2,1fr)}.podium{grid-template-columns:1fr;gap:10px}.podium-card.p1{order:-1}}
+@media print{.hdr,.nav,.toolbar,.filtros,.totais,.btn-card-pdf,.btn,.btn-blue{display:none!important}.cards,.rank-wrap{margin:0;padding:0}.cards-grid{grid-template-columns:repeat(2,1fr)}.ucard{break-inside:avoid;box-shadow:none;border:1px solid #ccc}body{background:#fff}}
+"""
+
+# ═════════════════════════════════════════════════════════════
+# TEMPLATE DASHBOARD
+# ═════════════════════════════════════════════════════════════
+TEMPLATE = r"""
+<!DOCTYPE html><html lang="pt-br"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFP – Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>__CSS__</style></head><body>
 <div class="hdr"><div class="hdr-in">
   <div class="logo-wrap"><div class="logo-img"><span>IFP</span></div>
   <div class="logo-txt"><h1>Dashboard de Fechamento Mensal</h1><p>Instituto de Formação Profissional</p></div></div>
   {% if periodo %}<div class="hdr-badge">📅 {{ periodo }}</div>{% endif %}
 </div></div>
+<div class="nav"><div class="nav-in">
+  <a href="/" class="ativo">📊 Painel</a>
+  <a href="/ranking">🏆 Ranking</a>
+</div></div>
 <div class="toolbar"><div class="toolbar-in">
-  {% if unidades %}
-  <form method="POST" action="/upload" enctype="multipart/form-data">
-    <label>📁 Atualizar:</label><input type="file" name="planilha" accept=".xlsx,.xlsm">
+  <form method="POST" action="/upload" enctype="multipart/form-data" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <label>📁 Planilha:</label><input type="file" name="planilha" accept=".xlsx,.xlsm">
     <button type="submit" class="btn btn-red">⬆ Carregar</button>
   </form>
-  <a href="/pdf/todas" class="btn btn-outline" target="_blank">⬇ PDF Geral</a>
-  <a href="/debug" class="btn-debug" target="_blank">🐛 Debug</a>
-  {% endif %}
+  {% if unidades %}<a href="/pdf/todas" class="btn btn-blue" target="_blank">⬇ PDF Geral</a>{% endif %}
   {% if msg %}<span class="smsg {{ 'ok' if msg_ok else 'err' }}">{{ msg }}</span>{% endif %}
 </div></div>
 {% if unidades %}
@@ -639,18 +580,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
   </div>
   <div class="cbody">
     {% for ind in u.indicators %}
-    <div class="ind {{ ind.cls }}">
-      <span class="ind-lbl">{{ ind.label }}</span><span class="ind-meta">{{ ind.meta }}</span>
+    <div class="ind {{ ind.cls }}"><span class="ind-lbl">{{ ind.label }}</span><span class="ind-meta">{{ ind.meta }}</span>
       <span class="ind-val">{{ ind.display }}</span>
-      <div class="barwrap"><div class="bar {{ ind.cls }}" style="width:{{ ind.bar|round(1) }}%"></div></div>
-    </div>
+      <div class="barwrap"><div class="bar {{ ind.cls }}" style="width:{{ ind.bar|round(1) }}%"></div></div></div>
     {% endfor %}
     <span class="sec-title">📋 Cobrança <span class="sec-tag mq">Matrícula e Quitação</span></span>
     <div class="fd3">
       {% set fa = 'ok' if u.fin_atual>=0.94 else ('am' if u.fin_atual>=0.80 else 'bad') %}
       <div class="fd {{ fa }}"><div class="fd-l">Atual</div><div class="fd-p">{{ u.fin_atual|pct }}</div><div class="fd-v">{{ u.valor_atual|brl0 }}</div></div>
-      <div class="fd"><div class="fd-l">30 dias</div><div class="fd-p">{{ u.fin_30|pct }}</div><div class="fd-v">{{ u.valor_30|brl0 }}</div></div>
-      <div class="fd"><div class="fd-l">60 dias</div><div class="fd-p">{{ u.fin_60|pct }}</div><div class="fd-v">{{ u.valor_60|brl0 }}</div></div>
+      <div class="fd"><div class="fd-l">30 dias+</div><div class="fd-p">{{ u.fin_30|pct }}</div><div class="fd-v">{{ u.valor_30|brl0 }}</div></div>
+      <div class="fd"><div class="fd-l">60 dias+</div><div class="fd-p">{{ u.fin_60|pct }}</div><div class="fd-v">{{ u.valor_60|brl0 }}</div></div>
     </div>
     <span class="sec-title">💰 Faturamento <span class="sec-tag mq">Matrícula e Quitação</span></span>
     <div class="row3">
@@ -678,11 +617,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
   <div class="land-body"><h3>Carregar planilha</h3>
     <form method="POST" action="/upload" enctype="multipart/form-data">
       <div class="upload-zone" id="upload-zone">
-        <label for="file-input">
-          <div class="uz-icon">📂</div><div class="uz-title">Clique para selecionar</div>
-          <div class="uz-sub">ou arraste e solte aqui</div>
-          <div class="uz-fname" id="uz-fname">Nenhum arquivo selecionado</div>
-        </label>
+        <label for="file-input"><div class="uz-icon">📂</div><div class="uz-title">Clique para selecionar</div>
+          <div class="uz-sub">ou arraste e solte aqui</div><div class="uz-fname" id="uz-fname">Nenhum arquivo selecionado</div></label>
         <input type="file" id="file-input" name="planilha" accept=".xlsx,.xlsm"
                onchange="document.getElementById('uz-fname').textContent=this.files[0]?.name||'Nenhum arquivo'">
       </div>
@@ -691,7 +627,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
     </form>
     <div class="land-hints">
       <div class="hint"><span class="hint-icon">📋</span><span>Abas: <strong>IFP - Unidade (Visitas)</strong>, <strong>(Matrícula e Quitação)</strong>, <strong>(Frequência)</strong></span></div>
-      <div class="hint"><span class="hint-icon">🔢</span><span>Valores em texto convertidos automaticamente</span></div>
+      <div class="hint"><span class="hint-icon">🏆</span><span>Após carregar, veja o <strong>Ranking</strong> das unidades</span></div>
     </div>
   </div>
 </div></div>
@@ -710,7 +646,93 @@ z.addEventListener('drop',function(e){e.preventDefault();z.style.borderColor='';
 """
 
 # ═════════════════════════════════════════════════════════════
-# TEMPLATE PDF
+# TEMPLATE RANKING
+# ═════════════════════════════════════════════════════════════
+RANKING_TEMPLATE = r"""
+<!DOCTYPE html><html lang="pt-br"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFP – Ranking</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>__CSS__</style></head><body>
+<div class="hdr"><div class="hdr-in">
+  <div class="logo-wrap"><div class="logo-img"><span>IFP</span></div>
+  <div class="logo-txt"><h1>Ranking de Unidades</h1><p>Instituto de Formação Profissional</p></div></div>
+  {% if periodo %}<div class="hdr-badge">📅 {{ periodo }}</div>{% endif %}
+</div></div>
+<div class="nav"><div class="nav-in">
+  <a href="/">📊 Painel</a>
+  <a href="/ranking" class="ativo">🏆 Ranking</a>
+</div></div>
+{% if ranking %}
+<div class="toolbar"><div class="toolbar-in">
+  <span class="flabel">🏆 Classificação geral das {{ ranking|length }} unidades por desempenho</span>
+  <div style="flex:1"></div>
+  <a href="/pdf/ranking" class="btn btn-red" target="_blank">⬇ Baixar Ranking em PDF</a>
+</div></div>
+<div class="rank-wrap">
+  <!-- PÓDIO -->
+  <div class="podium">
+    {% if ranking|length > 1 %}
+    <div class="podium-card p2">
+      <div class="podium-medal">🥈</div>
+      <div class="podium-pos">2º Lugar</div>
+      <div class="podium-nome">{{ ranking[1].nome }}</div>
+      <div class="podium-score">{{ ranking[1].rank_score }}<small>/100</small></div>
+      <div class="podium-meta">{{ ranking[1].score }}/5 metas</div>
+    </div>
+    {% else %}<div></div>{% endif %}
+    <div class="podium-card p1">
+      <div class="podium-medal">🥇</div>
+      <div class="podium-pos">1º Lugar</div>
+      <div class="podium-nome">{{ ranking[0].nome }}</div>
+      <div class="podium-score">{{ ranking[0].rank_score }}<small>/100</small></div>
+      <div class="podium-meta">{{ ranking[0].score }}/5 metas</div>
+    </div>
+    {% if ranking|length > 2 %}
+    <div class="podium-card p3">
+      <div class="podium-medal">🥉</div>
+      <div class="podium-pos">3º Lugar</div>
+      <div class="podium-nome">{{ ranking[2].nome }}</div>
+      <div class="podium-score">{{ ranking[2].rank_score }}<small>/100</small></div>
+      <div class="podium-meta">{{ ranking[2].score }}/5 metas</div>
+    </div>
+    {% else %}<div></div>{% endif %}
+  </div>
+  <!-- TABELA COMPLETA -->
+  <div class="rank-table">
+    <div class="rank-row head">
+      <div>#</div><div>Unidade</div>
+      <div class="rank-hide">Matríc.</div><div class="rank-hide">Ticket</div>
+      <div class="rank-hide">Cobr.</div><div class="rank-hide">Freq.</div>
+      <div class="rank-hide">Retenç.</div><div>Pontos</div><div class="rank-hide">Status</div>
+    </div>
+    {% for u in ranking %}
+    <div class="rank-row">
+      <div class="rank-pos {% if u.posicao==1 %}top1{% elif u.posicao==2 %}top2{% elif u.posicao==3 %}top3{% endif %}">
+        {% if u.posicao==1 %}🥇{% elif u.posicao==2 %}🥈{% elif u.posicao==3 %}🥉{% else %}{{ u.posicao }}{% endif %}
+      </div>
+      <div class="rank-nome">{{ u.nome }}</div>
+      <div class="rank-cell rank-hide {{ 'g' if u.matriculas>=120 else 'r' }}">{{ u.matriculas|toint }}</div>
+      <div class="rank-cell rank-hide {{ 'g' if u.ticket_medio>=199 else 'r' }}">{{ u.ticket_medio|brl0 }}</div>
+      <div class="rank-cell rank-hide {{ 'g' if u.fin_atual>=0.94 else 'r' }}">{{ u.fin_atual|pct }}</div>
+      <div class="rank-cell rank-hide {{ 'g' if u.frequencia>=0.75 else 'r' }}">{{ u.frequencia|pct }}</div>
+      <div class="rank-cell rank-hide {{ 'g' if u.retencao>=0.94 else 'r' }}">{{ u.retencao|pct }}</div>
+      <div class="rank-score-cell">{{ u.rank_score }}</div>
+      <div class="rank-hide"><span class="rank-badge {{ u.status }}">{{ 'BOM' if u.status=='bom' else 'RUIM' }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="landing"><div class="land-card"><div class="land-top"><div class="lico">🏆</div>
+  <h2>Sem dados para ranquear</h2><p>Carregue uma planilha no Painel para ver o ranking das unidades.</p></div>
+  <div class="land-body"><a href="/" class="land-btn" style="text-align:center;text-decoration:none">⬅ Ir para o Painel</a></div></div></div>
+{% endif %}
+</body></html>
+"""
+
+# ═════════════════════════════════════════════════════════════
+# TEMPLATE PDF (cards)
 # ═════════════════════════════════════════════════════════════
 PDF_TEMPLATE = r"""
 <!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>IFP – {{ titulo }}</title>
@@ -748,7 +770,7 @@ PDF_TEMPLATE = r"""
 <div class="ucard"><div class="chd {{ u.status }}"><span class="cnome">{{ u.nome }}</span><span class="sbadge">{%- if u.status=='bom' %}✅ BOM{%- else %}❌ RUIM{%- endif -%}&nbsp;· {{ u.score }}/5</span></div>
 <div class="cbody">
 {% for ind in u.indicators %}<div class="ind {{ ind.cls }}"><span class="ind-lbl">{{ ind.label }}</span><span class="ind-meta">{{ ind.meta }}</span><span class="ind-val">{{ ind.display }}</span><div class="barwrap"><div class="bar {{ ind.cls }}" style="width:{{ ind.bar|round(1) }}%"></div></div></div>{% endfor %}
-<span class="sec">Cobrança</span><div class="r3"><div class="bx"><div class="bx-l">Atual</div><div class="bx-v">{{ u.fin_atual|pct }}</div></div><div class="bx"><div class="bx-l">30d</div><div class="bx-v">{{ u.fin_30|pct }}</div></div><div class="bx"><div class="bx-l">60d</div><div class="bx-v">{{ u.fin_60|pct }}</div></div></div>
+<span class="sec">Cobrança</span><div class="r3"><div class="bx"><div class="bx-l">Atual</div><div class="bx-v">{{ u.fin_atual|pct }}</div></div><div class="bx"><div class="bx-l">30d+</div><div class="bx-v">{{ u.fin_30|pct }}</div></div><div class="bx"><div class="bx-l">60d+</div><div class="bx-v">{{ u.fin_60|pct }}</div></div></div>
 <span class="sec">Faturamento</span><div class="r3"><div class="bx"><div class="bx-l">Comercial</div><div class="bx-v">{{ u.fat_comercial|brl0 }}</div></div><div class="bx"><div class="bx-l">Ticket</div><div class="bx-v">{{ u.ticket_medio|brl0 }}</div></div><div class="bx"><div class="bx-l">Matrículas</div><div class="bx-v">{{ u.matriculas|toint }}</div></div></div>
 <span class="sec">Alunos</span><div class="r4"><div class="bx ok"><div class="bx-l">Ativos</div><div class="bx-v">{{ u.ativos|toint }}</div></div><div class="bx {{ 'al' if u.cancelados>20 else '' }}"><div class="bx-l">Cancel.</div><div class="bx-v">{{ u.cancelados|toint }}</div></div><div class="bx {{ 'al' if u.desistentes>50 else '' }}"><div class="bx-l">Desist.</div><div class="bx-v">{{ u.desistentes|toint }}</div></div><div class="bx {{ 'al' if u.nunca_veio>30 else '' }}"><div class="bx-l">N.Veio</div><div class="bx-v">{{ u.nunca_veio|toint }}</div></div></div>
 <div class="fat"><span class="fat-l">Faturamento Total</span><span class="fat-v">{{ u.fat_total|brl }}</span></div>
@@ -761,32 +783,96 @@ PDF_TEMPLATE = r"""
 """
 
 # ═════════════════════════════════════════════════════════════
+# TEMPLATE PDF RANKING
+# ═════════════════════════════════════════════════════════════
+PDF_RANKING = r"""
+<!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>IFP – Ranking</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#fff;color:#1a1f36;font-size:11px}
+.ph{background:linear-gradient(135deg,#8b0014,#c0021c);color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.ph-logo{font-size:1.3rem;font-weight:900}.ph-r h2{font-size:.95rem;font-weight:800;text-align:right}.ph-r p{font-size:.68rem;opacity:.85;text-align:right;margin-top:2px}
+.no-print{text-align:center;margin-bottom:12px}.no-print button{border:none;border-radius:8px;padding:9px 24px;font-size:.88rem;font-weight:700;cursor:pointer;margin:0 4px}
+.btn-p{background:#c0021c;color:#fff}.btn-c{background:#1a237e;color:#fff}
+.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:12px;align-items:end;max-width:760px;margin:0 auto 20px;padding:0 16px}
+.pc{border-radius:14px;padding:14px 10px;text-align:center;color:#fff}
+.pc.p1{background:linear-gradient(160deg,#f4cf52,#d4af37);padding-top:22px}
+.pc.p2{background:linear-gradient(160deg,#c3ccd6,#9fa8b5)}
+.pc.p3{background:linear-gradient(160deg,#e0a96d,#cd7f32)}
+.pc .m{font-size:2rem}.pc .pos{font-size:.65rem;font-weight:800;text-transform:uppercase}
+.pc .nm{font-size:.95rem;font-weight:900;margin:3px 0 6px}.pc .sc{font-size:1.5rem;font-weight:900}
+table{border-collapse:collapse;width:calc(100% - 32px);margin:0 16px 16px;font-size:10.5px}
+th,td{border:1px solid #e0e4f0;padding:6px 8px;text-align:center}
+th{background:#1a237e;color:#fff;font-size:.62rem;text-transform:uppercase}
+td.nm{text-align:left;font-weight:700}td.pos{font-weight:900;color:#1a237e}
+td.g{color:#2e7d32;font-weight:700}td.r{color:#c62828;font-weight:700}
+td.sc{font-weight:900;color:#1a237e}
+tr:nth-child(even){background:#f8f9fc}
+.rod{text-align:center;color:#999;font-size:.64rem;padding:8px 0 14px;border-top:1px solid #eee;margin:0 16px}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}}
+</style></head><body>
+<div class="ph"><div class="ph-logo">IFP</div><div class="ph-r"><h2>Ranking de Unidades</h2><p>Instituto de Formação Profissional &nbsp;|&nbsp; {{ periodo }}</p></div></div>
+<div class="no-print"><button class="btn-p" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button><button class="btn-c" onclick="window.close()">✕ Fechar</button></div>
+<div class="podium">
+  {% if ranking|length>1 %}<div class="pc p2"><div class="m">🥈</div><div class="pos">2º Lugar</div><div class="nm">{{ ranking[1].nome }}</div><div class="sc">{{ ranking[1].rank_score }}</div></div>{% else %}<div></div>{% endif %}
+  <div class="pc p1"><div class="m">🥇</div><div class="pos">1º Lugar</div><div class="nm">{{ ranking[0].nome }}</div><div class="sc">{{ ranking[0].rank_score }}</div></div>
+  {% if ranking|length>2 %}<div class="pc p3"><div class="m">🥉</div><div class="pos">3º Lugar</div><div class="nm">{{ ranking[2].nome }}</div><div class="sc">{{ ranking[2].rank_score }}</div></div>{% else %}<div></div>{% endif %}
+</div>
+<table>
+<tr><th>#</th><th style="text-align:left">Unidade</th><th>Matríc.</th><th>Ticket</th><th>Cobr.</th><th>Freq.</th><th>Retenç.</th><th>Pontos</th><th>Status</th></tr>
+{% for u in ranking %}
+<tr>
+  <td class="pos">{% if u.posicao==1 %}🥇{% elif u.posicao==2 %}🥈{% elif u.posicao==3 %}🥉{% else %}{{ u.posicao }}{% endif %}</td>
+  <td class="nm">{{ u.nome }}</td>
+  <td class="{{ 'g' if u.matriculas>=120 else 'r' }}">{{ u.matriculas|toint }}</td>
+  <td class="{{ 'g' if u.ticket_medio>=199 else 'r' }}">{{ u.ticket_medio|brl0 }}</td>
+  <td class="{{ 'g' if u.fin_atual>=0.94 else 'r' }}">{{ u.fin_atual|pct }}</td>
+  <td class="{{ 'g' if u.frequencia>=0.75 else 'r' }}">{{ u.frequencia|pct }}</td>
+  <td class="{{ 'g' if u.retencao>=0.94 else 'r' }}">{{ u.retencao|pct }}</td>
+  <td class="sc">{{ u.rank_score }}</td>
+  <td class="{{ 'g' if u.status=='bom' else 'r' }}">{{ 'BOM' if u.status=='bom' else 'RUIM' }}</td>
+</tr>
+{% endfor %}
+</table>
+<div class="rod">Gerado pelo sistema IFP Dashboard &nbsp;|&nbsp; {{ periodo }}</div>
+{% if auto_print %}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},800)});</script>{% endif %}
+</body></html>
+"""
+
+# ═════════════════════════════════════════════════════════════
 # ROTAS
 # ═════════════════════════════════════════════════════════════
+def _calc_totais(unidades):
+    total_mat   = sum(u["matriculas"] for u in unidades)
+    total_fat_t = sum(u["fat_total"]  for u in unidades)
+    total_ativ  = sum(u["ativos"]     for u in unidades)
+    ret_list  = [u["retencao"]   for u in unidades if u["retencao"]   > 0]
+    freq_list = [u["frequencia"] for u in unidades if u["frequencia"] > 0]
+    fin_list  = [u["fin_atual"]  for u in unidades if u["fin_atual"]  > 0]
+    tk_list   = [u["ticket_medio"] for u in unidades if u["ticket_medio"] > 0]
+    return {
+        "matriculas": total_mat, "ativos": total_ativ, "fat_total": total_fat_t,
+        "ticket_str": fmt_brl0(sum(tk_list)/len(tk_list) if tk_list else 0),
+        "retencao_str": f"{(sum(ret_list)/len(ret_list) if ret_list else 0)*100:.1f}%",
+        "freq_str": f"{(sum(freq_list)/len(freq_list) if freq_list else 0)*100:.1f}%",
+        "fin_atual_str": f"{(sum(fin_list)/len(fin_list) if fin_list else 0)*100:.1f}%",
+    }
+
 @app.route("/", methods=["GET"])
 def index():
     data, periodo, filename = get_cached_data()
     unidades = data or []
-    totais = {}
-    if unidades:
-        total_mat   = sum(u["matriculas"]    for u in unidades)
-        total_fat_t = sum(u["fat_total"]     for u in unidades)
-        total_ativ  = sum(u["ativos"]        for u in unidades)
-        ret_list  = [u["retencao"]   for u in unidades if u["retencao"]   > 0]
-        freq_list = [u["frequencia"] for u in unidades if u["frequencia"] > 0]
-        fin_list  = [u["fin_atual"]  for u in unidades if u["fin_atual"]  > 0]
-        tk_list   = [u["ticket_medio"] for u in unidades if u["ticket_medio"] > 0]
-        totais = {
-            "matriculas":    total_mat,
-            "ativos":        total_ativ,
-            "fat_total":     total_fat_t,
-            "ticket_str":    fmt_brl0(sum(tk_list)/len(tk_list) if tk_list else 0),
-            "retencao_str":  f"{(sum(ret_list)/len(ret_list)   if ret_list   else 0)*100:.1f}%",
-            "freq_str":      f"{(sum(freq_list)/len(freq_list)  if freq_list  else 0)*100:.1f}%",
-            "fin_atual_str": f"{(sum(fin_list)/len(fin_list)    if fin_list   else 0)*100:.1f}%",
-        }
-    return render_template_string(TEMPLATE, unidades=unidades, totais=totais, periodo=periodo,
+    totais = _calc_totais(unidades) if unidades else {}
+    html = TEMPLATE.replace("__CSS__", CSS)
+    return render_template_string(html, unidades=unidades, totais=totais, periodo=periodo,
         msg=request.args.get("msg",""), msg_ok=request.args.get("ok","1")=="1")
+
+@app.route("/ranking", methods=["GET"])
+def ranking():
+    data, periodo, _ = get_cached_data()
+    rk = ranquear(list(data)) if data else []
+    html = RANKING_TEMPLATE.replace("__CSS__", CSS)
+    return render_template_string(html, ranking=rk, periodo=periodo)
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -825,6 +911,14 @@ def pdf_unidade(idx):
     return Response(render_template_string(PDF_TEMPLATE, unidades=[u],
         titulo=f"Relatório — {u['nome']}", periodo=periodo or "—", auto_print=True),
         mimetype="text/html")
+
+@app.route("/pdf/ranking")
+def pdf_ranking():
+    data, periodo, _ = get_cached_data()
+    if not data: return redirect("/?msg=Sem+dados&ok=0")
+    rk = ranquear(list(data))
+    return Response(render_template_string(PDF_RANKING, ranking=rk,
+        periodo=periodo or "—", auto_print=True), mimetype="text/html")
 
 @app.route("/api/dados")
 def api_dados():
