@@ -601,7 +601,7 @@ h1,h2,h3,.cnome,.tc-val,.podium-nome,.detail-hero h2{font-family:'Sora',sans-ser
 .ucard:hover{box-shadow:var(--shadow-lg);transform:translateY(-4px)}
 .ucard:hover .chd::after{opacity:1;transform:translateX(0)}
 .chd{padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:relative;overflow:hidden}
-.chd::before{content:"";position:absolute;inset:0;background:radial-gradient(400px 120px at 110% -30%,rgba(255,255,255,.18),transparent)}
+.chd::before{content:"";position:absolute;inset:0;background:radial-gradient(400px 120px at 110% -30%,rgba(255,255,255,.18),transparent);pointer-events:none}
 .chd::after{content:"➜";position:absolute;right:14px;top:50%;transform:translate(8px,-50%);margin-top:0;color:rgba(255,255,255,.9);font-size:1rem;opacity:0;transition:.2s}
 .chd.bom{background:linear-gradient(135deg,#155e30,#1f9048);color:#fff}
 .chd.ruim{background:linear-gradient(135deg,var(--red-dk),var(--red));color:#fff}
@@ -637,7 +637,7 @@ h1,h2,h3,.cnome,.tc-val,.podium-nome,.detail-hero h2{font-family:'Sora',sans-ser
 .landing{max-width:680px;margin:54px auto;padding:0 24px}
 .land-card{background:var(--card);border-radius:24px;box-shadow:var(--shadow-lg);overflow:hidden}
 .land-top{background:linear-gradient(135deg,var(--red-dk),var(--red) 70%,var(--red-br));padding:40px 38px 30px;text-align:center;position:relative;overflow:hidden}
-.land-top::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 80% 130%,rgba(255,255,255,.14),transparent)}
+.land-top::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 80% 130%,rgba(255,255,255,.14),transparent);pointer-events:none}
 .land-top .lico{font-size:3.6rem;margin-bottom:10px;position:relative}
 .land-top h2{font-size:1.6rem;font-weight:800;color:#fff;margin-bottom:7px;position:relative}
 .land-top p{color:rgba(255,255,255,.9);font-size:.92rem;line-height:1.55;position:relative}
@@ -662,7 +662,7 @@ h1,h2,h3,.cnome,.tc-val,.podium-nome,.detail-hero h2{font-family:'Sora',sans-ser
 .detail-back:hover{background:var(--blue);color:#fff;transform:translateX(-3px)}
 .detail-hero{border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-lg);margin-bottom:20px}
 .detail-hero-top{padding:26px 28px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative;overflow:hidden}
-.detail-hero-top::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 95% 130%,rgba(255,255,255,.15),transparent)}
+.detail-hero-top::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 95% 130%,rgba(255,255,255,.15),transparent);pointer-events:none}
 .detail-hero-top.bom{background:linear-gradient(135deg,#155e30,#1f9048)}
 .detail-hero-top.ruim{background:linear-gradient(135deg,var(--red-dk),var(--red))}
 .detail-hero h2{font-size:1.8rem;font-weight:800;position:relative;letter-spacing:-.5px}
@@ -692,7 +692,7 @@ h1,h2,h3,.cnome,.tc-val,.podium-nome,.detail-hero h2{font-family:'Sora',sans-ser
 .podium{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:16px;align-items:end;margin-bottom:30px}
 .podium-card{border-radius:20px;padding:22px 16px;text-align:center;color:#fff;box-shadow:var(--shadow-lg);position:relative;overflow:hidden;transition:.2s}
 .podium-card:hover{transform:translateY(-4px)}
-.podium-card::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 120px at 50% -20%,rgba(255,255,255,.25),transparent)}
+.podium-card::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 120px at 50% -20%,rgba(255,255,255,.25),transparent);pointer-events:none}
 .podium-card.p1{background:linear-gradient(165deg,var(--ouro-2),var(--ouro));padding-top:34px}
 .podium-card.p2{background:linear-gradient(165deg,var(--prata-2),var(--prata))}
 .podium-card.p3{background:linear-gradient(165deg,var(--bronze-2),var(--bronze))}
@@ -1327,7 +1327,7 @@ HOME_TEMPLATE = r"""
 .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .home-card{border-radius:24px;padding:38px 32px;color:#fff;text-decoration:none;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);transition:.22s;display:flex;flex-direction:column;min-height:260px}
 .home-card:hover{transform:translateY(-6px)}
-.home-card::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 90% 130%,rgba(255,255,255,.16),transparent)}
+.home-card::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 90% 130%,rgba(255,255,255,.16),transparent);pointer-events:none}
 .home-card.mensal{background:linear-gradient(150deg,var(--red-dk),var(--red) 70%,var(--red-br))}
 .home-card.dec{background:linear-gradient(150deg,var(--blue),var(--blue-2) 70%,var(--blue-lt))}
 .home-card .hc-ico{font-size:3rem;margin-bottom:16px;position:relative}
@@ -1403,14 +1403,14 @@ CSS_DEC = r"""
 .btn-green{background:var(--verde);color:#fff}.btn-green:hover{background:#15602f}
 .btn-clear{background:#fff;color:var(--rose);border:1.5px solid var(--rose)}.btn-clear:hover{background:var(--rose-bg)}
 .dec-export-box{background:linear-gradient(150deg,var(--red-dk),var(--red) 70%,var(--red-br));border-radius:var(--r);padding:30px 28px;color:#fff;text-align:center;margin-bottom:24px;box-shadow:var(--shadow-red);position:relative;overflow:hidden}
-.dec-export-box::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 85% 130%,rgba(255,255,255,.14),transparent)}
+.dec-export-box::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 85% 130%,rgba(255,255,255,.14),transparent);pointer-events:none;z-index:0}
 .dec-export-box h3{font-size:1.4rem;font-weight:800;position:relative}
 .dec-export-box p{font-size:.9rem;opacity:.92;margin-top:8px;position:relative}
-.dec-export-form{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:relative}
-.dec-export-form select,.dec-export-form input[type=file]{padding:11px 14px;border-radius:11px;border:none;font-size:.86rem;font-weight:700;font-family:inherit}
+.dec-export-form{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:relative;z-index:2}
+.dec-export-form select,.dec-export-form input[type=file]{padding:11px 14px;border-radius:11px;border:none;font-size:.86rem;font-weight:700;font-family:inherit;cursor:pointer}
 .dec-export-form input[type=file]{background:rgba(255,255,255,.16);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
 .dec-export-form input[type=file]::-webkit-file-upload-button{background:#fff;color:var(--red);border:none;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer;margin-right:8px}
-.btn-export-big{background:#fff;color:var(--red);font-size:1rem;font-weight:800;padding:13px 30px;border-radius:13px;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.btn-export-big{background:#fff;color:var(--red);font-size:1rem;font-weight:800;padding:13px 30px;border-radius:13px;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.2);position:relative;z-index:2}
 .btn-export-big:hover{transform:translateY(-2px)}
 .dec-units-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
 .dec-unit{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);border:1px solid var(--borda);overflow:hidden}
@@ -1433,7 +1433,7 @@ CSS_DEC = r"""
 .res-table td.lbl{text-align:left;padding-left:16px;font-weight:700}
 .res-table .ating{font-weight:800;font-family:'Sora'}
 .res-table .ating.g{color:var(--verde)}.res-table .ating.am{color:var(--amber)}.res-table .ating.r{color:var(--rose)}
-.dec-export-box .dec-progress{display:inline-block;margin-top:14px;position:relative;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:30px;padding:7px 18px;font-size:.82rem;font-weight:800}
+.dec-export-box .dec-progress{display:inline-block;margin-top:14px;position:relative;z-index:2;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:30px;padding:7px 18px;font-size:.82rem;font-weight:800}
 .dec-banner{display:flex;align-items:flex-start;gap:12px;padding:15px 20px;border-radius:14px;margin-bottom:18px;font-size:.9rem;font-weight:700;box-shadow:var(--shadow);line-height:1.45}
 .dec-banner .db-ico{font-size:1.3rem;flex-shrink:0;line-height:1.2}
 .dec-banner.ok{background:var(--verde-bg);color:var(--verde);border:1.5px solid var(--verde-lt)}
