@@ -444,7 +444,33 @@ CAMPOS_DEC = ["mes_anterior","meta_mes","quantidade","valor"]
 # Armazenamento em memória:
 #   _metas_dec[nome_unidade][linha_id] = {"mes_anterior":x,"meta_mes":y,"quantidade":z,"valor":w}
 #   _result_dec[nome_unidade][decendio_id] = {...comparação VF x meta...}
+import json
+DEC_DB_PATH = os.environ.get("IFP_DEC_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "ifp_decendial.json"))
+
 _dec = {"metas":{}, "resultados":{}, "unidades":[]}
+
+def salvar_dec_disco():
+    """Persiste metas/resultados em arquivo JSON para não perder ao reiniciar."""
+    try:
+        with open(DEC_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(_dec, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[DEC] Falha ao salvar em disco: {e}")
+
+def carregar_dec_disco():
+    """Carrega metas/resultados salvos do JSON, se existir."""
+    try:
+        if os.path.exists(DEC_DB_PATH):
+            with open(DEC_DB_PATH, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            _dec["metas"]      = d.get("metas", {})
+            _dec["resultados"] = d.get("resultados", {})
+            _dec["unidades"]   = d.get("unidades", [])
+            print(f"[DEC] {len(_dec['metas'])} unidades com metas carregadas do disco")
+    except Exception as e:
+        print(f"[DEC] Falha ao carregar do disco: {e}")
+
+carregar_dec_disco()
 
 def dec_unidades():
     """Lista de nomes de unidades — vem do Fechamento Mensal se já carregado,
@@ -453,8 +479,15 @@ def dec_unidades():
     if data:
         nomes=[u["nome"] for u in data]
         _dec["unidades"]=nomes
+        salvar_dec_disco()
         return nomes
     return _dec.get("unidades",[])
+
+def unidades_no_vf():
+    """Conjunto de unidades (nomes) que casam com o VF do fechamento atual."""
+    data,_,_ = get_cached_data()
+    if not data: return set()
+    return {u["nome"] for u in data if u.get("fonte_vf")}
 
 def metas_da_unidade(nome):
     return _dec["metas"].get(nome, {})
@@ -1437,7 +1470,7 @@ __NAV__
     <span class="flabel">Selecione a unidade:</span>
     <select class="dec-unidade-sel" onchange="window.location='/decendial?u='+encodeURIComponent(this.value)">
       {% for nome in unidades %}
-      <option value="{{ nome }}" {{ 'selected' if nome==unidade_sel else '' }}>{{ nome }}</option>
+      <option value="{{ nome }}" {{ 'selected' if nome==unidade_sel else '' }}>{{ nome }}{{ '  ⚠️ (fora do VF)' if nome not in no_vf else ('  ✓ salva' if nome in com_metas else '') }}</option>
       {% endfor %}
     </select>
     {% if msg %}<span class="smsg {{ 'ok' if msg_ok else 'err' }}">{{ msg }}</span>{% endif %}
@@ -1445,11 +1478,18 @@ __NAV__
     <a href="/decendial/pdf?u={{ unidade_sel|urlencode }}" target="_blank" class="btn btn-blue">⬇ PDF</a>
     <a href="/decendial/excel?u={{ unidade_sel|urlencode }}" class="btn btn-green">⬇ Excel</a>
   </div>
+  {% if unidade_sel not in no_vf %}
+  <div class="dec-banner err" style="margin-bottom:18px">
+    <span class="db-ico">⚠️</span>
+    <span>A unidade <strong>{{ unidade_sel }}</strong> não aparece no VF do fechamento atual, então o acompanhamento decendial não conseguirá compará-la. Você pode cadastrar as metas, mas o "Exportar VF" só gera resultado para unidades que constam no VF.</span>
+  </div>
+  {% endif %}
   <form method="POST" action="/decendial/salvar">
   <input type="hidden" name="unidade" value="{{ unidade_sel }}">
   <div class="dec-card">
     <div class="dec-card-h">
       <div><h3>🎯 {{ unidade_sel }}</h3><div class="sub">Metas do mês — preencha uma vez; ficam salvas para o acompanhamento decendial</div></div>
+      {% if unidade_sel in com_metas %}<span class="sbadge" style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4)">✓ Metas salvas</span>{% endif %}
     </div>
     <table class="metas-table">
       <thead><tr>
@@ -1488,11 +1528,16 @@ __NAV__
 @app.route("/decendial", methods=["GET"])
 def decendial():
     nomes = dec_unidades()
-    unidade_sel = request.args.get("u") or (nomes[0] if nomes else "")
+    # prioriza abrir numa unidade que esteja no VF (evita cair na Arapiraca por padrão)
+    no_vf = unidades_no_vf()
+    default = next((n for n in nomes if n in no_vf), (nomes[0] if nomes else ""))
+    unidade_sel = request.args.get("u") or default
     metas = metas_da_unidade(unidade_sel)
+    com_metas = set(_dec["metas"].keys())
     html = DEC_METAS_TEMPLATE.replace("__CSS__",CSS+CSS_DEC).replace("__NAV__",dec_nav("metas"))
     return render_template_string(html, unidades=nomes, unidade_sel=unidade_sel,
         linhas=LINHAS_DEC, metas=metas, total_receb=total_recebido(unidade_sel),
+        no_vf=no_vf, com_metas=com_metas,
         msg=request.args.get("msg",""), msg_ok=request.args.get("ok","1")=="1")
 
 @app.route("/decendial/salvar", methods=["POST"])
@@ -1507,6 +1552,7 @@ def decendial_salvar():
             if v: d[c]=v
         if d: bloco[l["id"]]=d
     _dec["metas"][nome]=bloco
+    salvar_dec_disco()
     # recalcula o score do fechamento com as novas metas (se já houver dados)
     data,per,fn = get_cached_data()
     if data:
@@ -1518,6 +1564,7 @@ def decendial_salvar():
 def decendial_limpar():
     nome = request.args.get("u","").strip()
     if nome in _dec["metas"]: _dec["metas"].pop(nome)
+    salvar_dec_disco()
     data,_,_=get_cached_data()
     if data:
         for u in data:
@@ -1527,6 +1574,8 @@ def decendial_limpar():
 @app.route("/decendial/limpar_tudo", methods=["GET"])
 def decendial_limpar_tudo():
     _dec["metas"].clear()
+    _dec["resultados"].clear()
+    salvar_dec_disco()
     data,_,_=get_cached_data()
     if data:
         for u in data: calcular_score(u)
@@ -1685,9 +1734,12 @@ __NAV__
   </div>
   <div class="dec-units-grid">
     {% for nome in unidades %}
-    {% set tem_metas = nome in resultados or false %}
     <div class="dec-unit">
-      <div class="dec-unit-h">{{ nome }}</div>
+      <div class="dec-unit-h">{{ nome }}
+        {% if nome not in no_vf %}<span style="float:right;font-size:.62rem;background:rgba(255,255,255,.25);border-radius:20px;padding:2px 8px">⚠️ fora do VF</span>
+        {% elif nome in com_metas %}<span style="float:right;font-size:.62rem;background:rgba(255,255,255,.25);border-radius:20px;padding:2px 8px">✓ metas</span>
+        {% else %}<span style="float:right;font-size:.62rem;background:rgba(255,255,255,.18);border-radius:20px;padding:2px 8px">sem metas</span>{% endif %}
+      </div>
       <div class="dec-unit-b">
         {% for d in decendios %}
           {% set feito = resultados.get(nome,{}).get(d.id) %}
@@ -1713,10 +1765,11 @@ __NAV__
 def decendial_acomp():
     nomes = dec_unidades()
     com_metas = [nm for nm in nomes if _dec["metas"].get(nm)]
+    no_vf = unidades_no_vf()
     html = DEC_ACOMP_TEMPLATE.replace("__CSS__",CSS+CSS_DEC).replace("__NAV__",dec_nav("acomp"))
     return render_template_string(html, unidades=nomes, decendios=DECENDIOS,
         resultados=_dec["resultados"], msg=request.args.get("msg",""),
-        msg_tipo=request.args.get("t","ok"),
+        msg_tipo=request.args.get("t","ok"), no_vf=no_vf, com_metas=set(com_metas),
         n_com_metas=len(com_metas), n_total=len(nomes))
 
 @app.route("/decendial/exportar_vf", methods=["POST"])
@@ -1779,14 +1832,21 @@ def decendial_exportar_vf():
             "cancelados":v["cancelados"],"canc_scpc":v["canc_scpc"],
         }
         n+=1
+    salvar_dec_disco()
     lbl=next(d["label"] for d in DECENDIOS if d["id"]==dec_id)
     falt = len(nomes)-len(com_metas)
     msg = f"✅+{lbl}:+{n}+unidade(s)+comparada(s)+com+o+VF"
-    if falt>0: msg += f".+{falt}+unidade(s)+ainda+sem+metas+cadastradas"
-    if sem_match: msg += f".+{len(sem_match)}+com+metas+mas+não+encontrada(s)+no+VF"
+    if falt>0: msg += f".+{falt}+sem+metas+cadastradas"
+    if sem_match:
+        nomes_sm = ",+".join(s.replace("IFP - ","").replace("IFPA - ","") for s in sem_match[:5])
+        msg += f".+Com+metas+mas+fora+do+VF:+{nomes_sm}"
     tipo = "ok" if n>0 else "err"
     if n==0:
-        msg = "Nenhuma+unidade+foi+comparada:+as+unidades+com+metas+não+foram+encontradas+neste+VF"
+        if sem_match:
+            nomes_sm = ",+".join(s.replace("IFP - ","").replace("IFPA - ","") for s in sem_match[:6])
+            msg = f"Nenhuma+comparação+feita.+As+unidades+com+metas+({nomes_sm})+não+aparecem+neste+VF.+Salve+metas+de+unidades+que+constam+no+VF"
+        else:
+            msg = "Nenhuma+unidade+foi+comparada.+Cadastre+metas+de+unidades+que+constam+no+VF"
     return redirect(f"/decendial/acompanhamento?t={tipo}&msg={msg}")
 
 DEC_RESULT_TEMPLATE = r"""
