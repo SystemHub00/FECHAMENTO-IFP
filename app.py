@@ -546,12 +546,16 @@ h1,h2,h3,.cnome,.tc-val,.podium-nome,.detail-hero h2{font-family:'Sora',sans-ser
 /* TOTAIS */
 .totais{max-width:1600px;margin:22px auto 0;padding:0 26px}
 .totais-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
-.tc{background:var(--card);border-radius:var(--r);padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;border:1px solid var(--borda);transition:.2s;display:flex;flex-direction:column;min-height:118px}
+.tc{background:var(--card);border-radius:var(--r);padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;border:1px solid var(--borda);transition:.2s;display:flex;flex-direction:column;min-height:118px;cursor:pointer}
 .tc:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
 .tc::before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--blue),var(--blue-lt))}
 .tc-ico{position:absolute;top:15px;right:16px;font-size:1.15rem;opacity:.22;line-height:1}
 .tc-lbl{font-size:.66rem;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;padding-right:26px;line-height:1.25}
 .tc-val{font-size:clamp(1.35rem,2.4vw,1.85rem);font-weight:800;color:var(--blue);line-height:1.05;margin-top:auto;padding-top:8px;letter-spacing:-.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc.aberto .tc-val{white-space:normal;overflow:visible;text-overflow:clip;font-size:1.25rem;word-break:break-word}
+.tc.aberto{box-shadow:var(--shadow-lg)}
+.tc-hint{position:absolute;bottom:10px;right:14px;font-size:.6rem;font-weight:700;color:var(--txt2);opacity:0;transition:.16s}
+.tc:hover .tc-hint{opacity:.6}
 .tc-sub{font-size:.7rem;color:var(--txt2);margin-top:5px;font-weight:600;line-height:1.2}
 .tc.r::before{background:linear-gradient(90deg,var(--red-dk),var(--red-br))}.tc.r .tc-val{color:var(--red)}
 .tc.g::before{background:linear-gradient(90deg,var(--verde),var(--verde-lt))}.tc.g .tc-val{color:var(--verde)}
@@ -798,6 +802,22 @@ var fa='todos';
 function filtrar(s,b){fa=s;document.querySelectorAll('.fbtn').forEach(function(x){x.classList.remove('ativo')});if(b)b.classList.add('ativo');ap(document.querySelector('.search')?document.querySelector('.search').value.toLowerCase():'')}
 function buscar(q){ap(q.toLowerCase())}
 function ap(q){q=q||'';document.querySelectorAll('.ucard').forEach(function(c){c.style.display=((fa==='todos'||c.dataset.status===fa)&&(!q||c.dataset.nome.includes(q)))?'':'none'})}
+// Totalizadores: clicar expande o valor inteiro quando ele está cortado
+document.querySelectorAll('.tc').forEach(function(card){
+  var val=card.querySelector('.tc-val');
+  // adiciona dica só quando o texto está truncado
+  function cortado(){return val.scrollWidth>val.clientWidth+1;}
+  var hint=document.createElement('span');hint.className='tc-hint';hint.textContent='ver completo';
+  card.appendChild(hint);
+  function atualizaHint(){hint.style.display=(cortado()||card.classList.contains('aberto'))?'':'none';}
+  atualizaHint();
+  card.addEventListener('click',function(){
+    card.classList.toggle('aberto');
+    hint.textContent=card.classList.contains('aberto')?'recolher':'ver completo';
+    atualizaHint();
+  });
+  window.addEventListener('resize',atualizaHint);
+});
 </script>
 </body></html>
 """
