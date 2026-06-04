@@ -1400,8 +1400,11 @@ CSS_DEC = r"""
 .res-table td.lbl{text-align:left;padding-left:16px;font-weight:700}
 .res-table .ating{font-weight:800;font-family:'Sora'}
 .res-table .ating.g{color:var(--verde)}.res-table .ating.am{color:var(--amber)}.res-table .ating.r{color:var(--rose)}
-.minibar{height:7px;background:#e3e7f1;border-radius:5px;overflow:hidden;min-width:60px}
-.minibar>div{height:100%;border-radius:5px}
+.dec-export-box .dec-progress{display:inline-block;margin-top:14px;position:relative;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:30px;padding:7px 18px;font-size:.82rem;font-weight:800}
+.dec-banner{display:flex;align-items:flex-start;gap:12px;padding:15px 20px;border-radius:14px;margin-bottom:18px;font-size:.9rem;font-weight:700;box-shadow:var(--shadow);line-height:1.45}
+.dec-banner .db-ico{font-size:1.3rem;flex-shrink:0;line-height:1.2}
+.dec-banner.ok{background:var(--verde-bg);color:var(--verde);border:1.5px solid var(--verde-lt)}
+.dec-banner.err{background:linear-gradient(135deg,var(--red),var(--red-dk));color:#fff;border:1.5px solid var(--red-dk)}
 """
 
 def dec_nav(ativo):
@@ -1655,21 +1658,34 @@ __NAV__
     <p>Carregue a planilha + VF no <a href="/fechamento" style="color:var(--red);font-weight:800">Fechamento Mensal</a> primeiro.</p>
   </div></div>
 {% else %}
+  {% if msg %}
+  <div class="dec-banner {{ msg_tipo }}">
+    <span class="db-ico">{% if msg_tipo=='err' %}⚠️{% else %}✅{% endif %}</span>
+    <span>{{ msg }}</span>
+  </div>
+  {% endif %}
+  {% if n_com_metas==0 %}
+  <div class="dec-banner err">
+    <span class="db-ico">📝</span>
+    <span>Você ainda <strong>não cadastrou metas</strong> de nenhuma unidade. Vá em <a href="/decendial" style="color:#fff;text-decoration:underline;font-weight:800">Metas das Unidades</a>, preencha e salve. Só depois o "Exportar VF" terá com o que comparar.</span>
+  </div>
+  {% endif %}
   <div class="dec-export-box">
     <h3>📤 Exportar VF do período (10 dias)</h3>
     <p>Envie o VF correspondente a um decêndio. O sistema compara com as metas cadastradas e salva o resultado por unidade.<br>
        São <strong>3 envios no mês</strong>: dia 1 ao 10, dia 11 ao 21, e dia 22 ao último dia.</p>
+    <div class="dec-progress">📋 {{ n_com_metas }} de {{ n_total }} unidades com metas cadastradas</div>
     <form class="dec-export-form" method="POST" action="/decendial/exportar_vf" enctype="multipart/form-data">
       <select name="decendio" required>
         {% for d in decendios %}<option value="{{ d.id }}">{{ d.label }}</option>{% endfor %}
       </select>
-      <input type="file" name="vf" accept=".pdf" required>
+      <input type="file" name="vf" accept=".pdf,application/pdf" required>
       <button type="submit" class="btn-export-big">📊 Exportar VF e comparar</button>
     </form>
-    {% if msg %}<p style="margin-top:14px;position:relative;font-weight:700">{{ msg }}</p>{% endif %}
   </div>
   <div class="dec-units-grid">
     {% for nome in unidades %}
+    {% set tem_metas = nome in resultados or false %}
     <div class="dec-unit">
       <div class="dec-unit-h">{{ nome }}</div>
       <div class="dec-unit-b">
@@ -1696,30 +1712,45 @@ __NAV__
 @app.route("/decendial/acompanhamento", methods=["GET"])
 def decendial_acomp():
     nomes = dec_unidades()
+    com_metas = [nm for nm in nomes if _dec["metas"].get(nm)]
     html = DEC_ACOMP_TEMPLATE.replace("__CSS__",CSS+CSS_DEC).replace("__NAV__",dec_nav("acomp"))
     return render_template_string(html, unidades=nomes, decendios=DECENDIOS,
-        resultados=_dec["resultados"], msg=request.args.get("msg",""))
+        resultados=_dec["resultados"], msg=request.args.get("msg",""),
+        msg_tipo=request.args.get("t","ok"),
+        n_com_metas=len(com_metas), n_total=len(nomes))
 
 @app.route("/decendial/exportar_vf", methods=["POST"])
 def decendial_exportar_vf():
     dec_id = request.form.get("decendio","").strip()
     vf = request.files.get("vf")
     if dec_id not in [d["id"] for d in DECENDIOS]:
-        return redirect("/decendial/acompanhamento?msg=Selecione+um+período+válido")
-    if not vf or not vf.filename.lower().endswith(".pdf"):
-        return redirect("/decendial/acompanhamento?msg=Envie+um+VF+em+PDF")
+        return redirect("/decendial/acompanhamento?t=err&msg=Selecione+um+período+válido")
+    if not vf or not vf.filename:
+        return redirect("/decendial/acompanhamento?t=err&msg=Nenhum+arquivo+escolhido.+Clique+em+'Escolher+arquivo'+e+selecione+o+VF+(PDF)")
+    if not vf.filename.lower().endswith(".pdf"):
+        return redirect("/decendial/acompanhamento?t=err&msg=O+arquivo+precisa+ser+um+VF+em+PDF")
+
+    # Verifica se há alguma meta cadastrada antes de processar
+    nomes = dec_unidades()
+    com_metas = [nm for nm in nomes if _dec["metas"].get(nm)]
+    if not com_metas:
+        return redirect("/decendial/acompanhamento?t=err&msg=⚠️+Cadastre+as+metas+de+pelo+menos+uma+unidade+na+aba+'Metas+das+Unidades'+antes+de+exportar+o+VF")
+
     try:
         vf_dados = parse_vf_pdf(vf.read())
     except Exception as e:
-        return redirect(f"/decendial/acompanhamento?msg=Erro+ao+ler+VF:+{str(e)[:80]}")
+        return redirect(f"/decendial/acompanhamento?t=err&msg=Erro+ao+ler+VF:+{str(e)[:80]}")
+    if not vf_dados:
+        return redirect("/decendial/acompanhamento?t=err&msg=Não+consegui+ler+dados+do+VF.+Confira+se+é+o+arquivo+correto")
+
     # Para cada unidade com metas, compara o VF (10 dias) com a meta do mês
-    n=0
-    for nome in dec_unidades():
+    n=0; sem_match=[]
+    for nome in com_metas:
         metas = _dec["metas"].get(nome)
-        if not metas: continue
         chave = norm_nome(nome)
         v = vf_dados.get(chave)
-        if not v: continue
+        if not v:
+            sem_match.append(nome); continue
         # mapeia campos do VF para as linhas do formulário
         realizado = {
             "matricula":      v["fat_comercial"],   # valor comercial realizado
@@ -1749,7 +1780,14 @@ def decendial_exportar_vf():
         }
         n+=1
     lbl=next(d["label"] for d in DECENDIOS if d["id"]==dec_id)
-    return redirect(f"/decendial/acompanhamento?msg=✅+VF+do+período+'{lbl}'+processado+para+{n}+unidades")
+    falt = len(nomes)-len(com_metas)
+    msg = f"✅+{lbl}:+{n}+unidade(s)+comparada(s)+com+o+VF"
+    if falt>0: msg += f".+{falt}+unidade(s)+ainda+sem+metas+cadastradas"
+    if sem_match: msg += f".+{len(sem_match)}+com+metas+mas+não+encontrada(s)+no+VF"
+    tipo = "ok" if n>0 else "err"
+    if n==0:
+        msg = "Nenhuma+unidade+foi+comparada:+as+unidades+com+metas+não+foram+encontradas+neste+VF"
+    return redirect(f"/decendial/acompanhamento?t={tipo}&msg={msg}")
 
 DEC_RESULT_TEMPLATE = r"""
 <!DOCTYPE html><html lang="pt-br"><head>
