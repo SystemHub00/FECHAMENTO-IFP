@@ -447,7 +447,7 @@ CAMPOS_DEC = ["mes_anterior","meta_mes","quantidade","valor"]
 import json
 DEC_DB_PATH = os.environ.get("IFP_DEC_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "ifp_decendial.json"))
 
-_dec = {"metas":{}, "resultados":{}, "unidades":[]}
+_dec = {"metas":{}, "resultados":{}, "unidades":[], "ultimo_mes":"", "import_raw":{}, "import_mes":""}
 
 def salvar_dec_disco():
     """Persiste metas/resultados em arquivo JSON para não perder ao reiniciar."""
@@ -466,6 +466,9 @@ def carregar_dec_disco():
             _dec["metas"]      = d.get("metas", {})
             _dec["resultados"] = d.get("resultados", {})
             _dec["unidades"]   = d.get("unidades", [])
+            _dec["ultimo_mes"] = d.get("ultimo_mes", "")
+            _dec["import_raw"] = d.get("import_raw", {})
+            _dec["import_mes"] = d.get("import_mes", "")
             print(f"[DEC] {len(_dec['metas'])} unidades com metas carregadas do disco")
     except Exception as e:
         print(f"[DEC] Falha ao carregar do disco: {e}")
@@ -473,14 +476,17 @@ def carregar_dec_disco():
 carregar_dec_disco()
 
 def dec_unidades():
-    """Lista de nomes de unidades — vem do Fechamento Mensal se já carregado,
-       senão da lista salva no próprio decendial."""
+    """Lista de unidades. Prioridade: Fechamento Mensal (se carregado) →
+       unidades importadas no Plano de Metas → última lista salva."""
     data,_,_ = get_cached_data()
     if data:
         nomes=[u["nome"] for u in data]
         _dec["unidades"]=nomes
         salvar_dec_disco()
         return nomes
+    # sem fechamento: usa as unidades já importadas (permite importar metas ANTES)
+    if _dec.get("import_raw"):
+        return sorted(_dec["import_raw"].keys())
     return _dec.get("unidades",[])
 
 def unidades_no_vf():
@@ -496,6 +502,175 @@ def total_recebido(nome):
     """Total Recebido = soma da coluna VALOR de todas as linhas."""
     m = _dec["metas"].get(nome, {})
     return sum(to_float(m.get(l["id"],{}).get("valor",0)) for l in LINHAS_DEC)
+
+# ═════════════════════════════════════════════════════════════
+# IMPORTAÇÃO DA PLANILHA "PLANO DE METAS"
+# ═════════════════════════════════════════════════════════════
+MESES_DEC = [("1","Janeiro"),("2","Fevereiro"),("3","Março"),("4","Abril"),
+             ("5","Maio"),("6","Junho"),("7","Julho"),("8","Agosto"),
+             ("9","Setembro"),("10","Outubro"),("11","Novembro"),("12","Dezembro")]
+_MES_NOME_UP = {"JANEIRO":1,"FEVEREIRO":2,"MARÇO":3,"MARCO":3,"ABRIL":4,"MAIO":5,"JUNHO":6,
+                "JULHO":7,"AGOSTO":8,"SETEMBRO":9,"OUTUBRO":10,"NOVEMBRO":11,"DEZEMBRO":12}
+_UF_SIGLAS = {"AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA",
+              "PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"}
+_ABAS_IGNORAR = {"_VF","_CM","PÁGINA4","PAGINA4","AUX"}
+
+def _norm_match(s):
+    """Normaliza para casar nome de aba (sem 'IFP') com nome do sistema."""
+    return re.sub(r'^ifp','', norm_nome(s))   # norm_nome já converte 'ifpa'→'ifp'
+
+def _limpa_nome_aba(nome):
+    """Remove sufixo '(1)' e a sigla de UF do fim do nome da aba."""
+    n = re.sub(r'\s*\(\d+\)\s*$', '', str(nome)).strip()
+    return n
+
+def _split_uf(limpo):
+    if len(limpo) > 2 and limpo[-2:] in _UF_SIGLAS:
+        return limpo[:-2].strip(), limpo[-2:]
+    return limpo, ""
+
+# Texto da coluna "Discriminação" → id da linha do nosso modelo
+def _match_linha_dec(disc):
+    d = (disc or "").strip().lower()
+    if not d: return None
+    if d.startswith("matrícula") or d.startswith("matricula"): return "matricula"
+    if "projeção comercial" in d or "projecao comercial" in d: return "proj_comercial"
+    if d.startswith("atual"): return "atual"
+    if d.startswith("30 dia"): return "d30"
+    if d.startswith("60 dia"): return "d60"
+    if d.startswith("90 dia"): return "d90"
+    if d.startswith("scpc"): return "scpc"
+    if d.startswith("cancelamento"): return "cancelamentos"
+    if "parcelas antecipadas" in d: return "parc_antecip"
+    if "atrasado" in d: return "atraso90"
+    if d.startswith("produto"): return "produtos"
+    if "ticket da parcela" in d: return "ticket_parcela"
+    if "quantidade de parcelas" in d: return "qtd_parcelas"
+    return None   # "Outros", "Total Recebido", etc. são ignorados
+
+# Linhas cujo "Meta Mês" vem como fração (0.94) e deve virar percentual (94)
+_LINHAS_PCT = {"atual","d30","d60","d90"}
+
+def _fmt_meta_valor(linha_id, raw):
+    """Formata um número da planilha em texto BR para guardar como meta.
+       Para linhas de % (atual/30/60/90), converte fração→percentual."""
+    v = to_float(raw)
+    if linha_id in _LINHAS_PCT and 0 < abs(v) <= 1.5:
+        v = v * 100.0
+    # inteiro vira sem casas; com fração mantém 2 casas
+    if abs(v - round(v)) < 1e-9:
+        s = f"{int(round(v))}"
+    else:
+        s = f"{v:.2f}"
+    return s.replace(".", ",")
+
+def parse_plano_metas(xlsx_bytes, mes_idx):
+    """Lê a planilha 'Plano de Metas' e extrai as metas de cada unidade para o mês.
+       mes_idx: 1=Jan ... 12=Dez. Retorna (metas_por_aba, n_lidas, avisos)."""
+    wb = load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
+    metas_por_aba = {}   # nome_limpo_aba -> {linha_id: {mes_anterior,meta_mes,quantidade,valor}}
+    avisos = []
+    for aba in wb.sheetnames:
+        if aba.strip().upper() in _ABAS_IGNORAR:
+            continue
+        ws = wb[aba]
+        # Localiza a linha do mês pedido (rótulo na coluna A), entre os 12 primeiros blocos
+        base = None
+        for r in range(1, min(ws.max_row, 460) + 1):
+            a = ws.cell(r, 1).value
+            if a and _MES_NOME_UP.get(str(a).strip().upper()) == mes_idx:
+                base = r; break
+        if base is None:
+            continue
+        # Lê as linhas de meta a partir de base+2 até achar "Total"/"Planejamento de Despesas"
+        bloco = {}
+        for r in range(base + 1, base + 30):
+            disc = ws.cell(r, 3).value
+            ds = (str(disc).strip().upper() if disc is not None else "")
+            if ds.startswith("PLANEJAMENTO DE DESPES") or ds.startswith("TOTAL RECEBIDO"):
+                break
+            lid = _match_linha_dec(disc)
+            if not lid:
+                continue
+            d = ws.cell(r, 4).value   # Mês Anterior
+            e = ws.cell(r, 5).value   # Meta Mês
+            f = ws.cell(r, 6).value   # Quantidade
+            g = ws.cell(r, 7).value   # Valor
+            campo = {}
+            # Ticket e Qtd de Parcelas guardam o número na coluna Quantidade (F)
+            if lid in ("ticket_parcela", "qtd_parcelas"):
+                if to_float(f) != 0:
+                    campo["valor"] = _fmt_meta_valor(lid, f)
+                    campo["quantidade"] = _fmt_meta_valor(lid, f)
+            else:
+                if d is not None and to_float(d) != 0:
+                    campo["mes_anterior"] = _fmt_meta_valor(lid, d)
+                if e is not None and to_float(e) != 0:
+                    campo["meta_mes"] = _fmt_meta_valor(lid, e)
+                if f is not None and to_float(f) != 0:
+                    campo["quantidade"] = _fmt_meta_valor("_q", f)   # qtd nunca é %
+                if g is not None and to_float(g) != 0:
+                    campo["valor"] = _fmt_meta_valor("_v", g)        # valor nunca é %
+            if campo:
+                bloco[lid] = campo
+        if bloco:
+            metas_por_aba[_limpa_nome_aba(aba)] = bloco
+    return metas_por_aba, len(metas_por_aba), avisos
+
+def _casar_aba(nome_aba, sys_idx):
+    """Dado o nome limpo da aba e um índice {norm_match: nome_sistema},
+       retorna o nome de sistema correspondente (ou None)."""
+    sem_uf, _uf = _split_uf(nome_aba)
+    cand_com = _norm_match(nome_aba)   # com UF (resolve Planaltina DF/GO)
+    cand_sem = _norm_match(sem_uf)
+    if cand_com in sys_idx: return sys_idx[cand_com]
+    if cand_sem in sys_idx: return sys_idx[cand_sem]
+    # casamento por prefixo (ex: 'Canaa dos Carajas' ⊃ 'Canaã')
+    melhor = None
+    for k, nm in sys_idx.items():
+        if len(k) >= 4 and (cand_sem.startswith(k) or k.startswith(cand_sem)):
+            if melhor is None or len(k) > len(melhor[0]): melhor = (k, nm)
+    return melhor[1] if melhor else None
+
+def reconciliar_metas():
+    """Reconstrói _dec['metas'] a partir da importação bruta (_dec['import_raw']),
+       casando com as unidades do Fechamento Mensal se já estiver carregado.
+       Assim a ordem não importa: metas podem ser importadas ANTES do fechamento."""
+    raw = _dec.get("import_raw") or {}
+    if not raw:
+        return [], []
+    data,_,_ = get_cached_data()
+    sys_names = [u["nome"] for u in data] if data else []
+    novas = {}
+    aplicadas = []; nao_casaram = []
+    if sys_names:
+        sys_idx = {_norm_match(nm): nm for nm in sys_names}
+        usados = set()
+        for nome_aba, bloco in raw.items():
+            alvo = _casar_aba(nome_aba, sys_idx)
+            if alvo and alvo not in usados:
+                novas[alvo] = bloco; usados.add(alvo); aplicadas.append(alvo)
+            else:
+                # mantém pelo nome limpo da aba (aparece como unidade própria)
+                novas[nome_aba] = bloco; nao_casaram.append(nome_aba)
+    else:
+        # sem fechamento: usa o próprio nome limpo da aba
+        for nome_aba, bloco in raw.items():
+            novas[nome_aba] = bloco; aplicadas.append(nome_aba)
+    _dec["metas"] = novas
+    salvar_dec_disco()
+    # recalcula os scores do Fechamento com as novas metas
+    if data:
+        for u in data: calcular_score(u)
+    return aplicadas, nao_casaram
+
+def aplicar_metas_importadas(metas_por_aba):
+    """Guarda a importação bruta e reconcilia com as unidades do sistema.
+       Retorna (aplicadas, nao_casaram)."""
+    _dec["import_raw"] = metas_por_aba
+    salvar_dec_disco()
+    return reconciliar_metas()
+
 
 
 # ═════════════════════════════════════════════════════════════
@@ -825,6 +1000,7 @@ TEMPLATE = r"""
     <div class="land-hints">
       <div class="hint"><span class="hint-icon">⚠️</span><span>Os <strong>dois arquivos são obrigatórios</strong>. O VF fornece os valores oficiais de Cobrança Atual/30/60 e faturamento.</span></div>
       <div class="hint"><span class="hint-icon">📋</span><span>O Excel fornece frequência, retenção e situação dos alunos.</span></div>
+      <div class="hint" style="background:var(--blue-soft);color:var(--blue)"><span class="hint-icon">🎯</span><span>Dica: você pode <strong>importar as metas primeiro</strong> em <a href="/decendial" style="color:var(--red);font-weight:800">Período Decendial</a> e depois carregar o fechamento — os resultados já vêm comparados com as metas.</span></div>
     </div>
   </div>
 </div></div>
@@ -1261,8 +1437,11 @@ def upload():
         m=re.search(r'(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\w*[_\s]*\d{4}',vf.filename.lower())
         periodo=m.group(0).replace("_"," ").title() if m else vf.filename
         set_cached_data(unidades,periodo,f.filename,wb_bytes=eb)
+        # reconcilia metas importadas (caso tenham sido importadas ANTES do fechamento)
+        ap_metas, _ = reconciliar_metas()
         n_vf=sum(1 for u in unidades if u["fonte_vf"])
-        return redirect(f"/fechamento?msg=✅+{len(unidades)}+unidades+({n_vf}+casadas+com+VF)&ok=1")
+        extra = f"+·+{len(ap_metas)}+com+metas+importadas" if ap_metas else ""
+        return redirect(f"/fechamento?msg=✅+{len(unidades)}+unidades+({n_vf}+casadas+com+VF){extra}&ok=1")
     except Exception as e:
         traceback.print_exc()
         return redirect(f"/fechamento?msg=Erro:+{str(e)[:130]}&ok=0")
@@ -1438,6 +1617,17 @@ CSS_DEC = r"""
 .dec-banner .db-ico{font-size:1.3rem;flex-shrink:0;line-height:1.2}
 .dec-banner.ok{background:var(--verde-bg);color:var(--verde);border:1.5px solid var(--verde-lt)}
 .dec-banner.err{background:linear-gradient(135deg,var(--red),var(--red-dk));color:#fff;border:1.5px solid var(--red-dk)}
+.dec-import-box{background:linear-gradient(150deg,var(--blue),var(--blue-2) 70%,var(--blue-lt));border-radius:var(--r);padding:28px 28px;color:#fff;text-align:center;margin-bottom:24px;box-shadow:var(--shadow-lg);position:relative;overflow:hidden}
+.dec-import-box::after{content:"";position:absolute;inset:0;background:radial-gradient(500px 200px at 85% 130%,rgba(255,255,255,.14),transparent);pointer-events:none;z-index:0}
+.dec-import-box h3{font-size:1.3rem;font-weight:800;position:relative;z-index:1}
+.dec-import-box p{font-size:.88rem;opacity:.92;margin-top:8px;position:relative;z-index:1;line-height:1.5}
+.dec-import-form{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:relative;z-index:2}
+.dec-import-form select,.dec-import-form input[type=file]{padding:11px 14px;border-radius:11px;border:none;font-size:.86rem;font-weight:700;font-family:inherit;cursor:pointer}
+.dec-import-form input[type=file]{background:rgba(255,255,255,.16);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
+.dec-import-form input[type=file]::-webkit-file-upload-button{background:#fff;color:var(--blue);border:none;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer;margin-right:8px}
+.btn-import-big{background:#fff;color:var(--blue);font-size:1rem;font-weight:800;padding:13px 30px;border-radius:13px;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.2);position:relative;z-index:2}
+.btn-import-big:hover{transform:translateY(-2px)}
+.dec-import-box .dec-progress{display:inline-block;margin-top:14px;position:relative;z-index:2;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:30px;padding:7px 18px;font-size:.82rem;font-weight:800}
 """
 
 def dec_nav(ativo):
@@ -1463,46 +1653,70 @@ __NAV__
 {% if not unidades %}
   <div class="dec-card"><div class="dec-empty"><div class="ico">📊</div>
     <h3 style="color:var(--blue);font-size:1.1rem;margin-bottom:8px">Nenhuma unidade carregada ainda</h3>
-    <p>Para cadastrar as metas, primeiro carregue a planilha + VF no módulo <a href="/fechamento" style="color:var(--red);font-weight:800">Fechamento Mensal</a>. As unidades de lá aparecerão aqui automaticamente.</p>
+    <p>Para importar as metas, primeiro carregue a planilha + VF no módulo <a href="/fechamento" style="color:var(--red);font-weight:800">Fechamento Mensal</a>. As unidades de lá aparecerão aqui automaticamente.</p>
   </div></div>
 {% else %}
+  {% if msg %}
+  <div class="dec-banner {{ 'ok' if msg_ok else 'err' }}">
+    <span class="db-ico">{% if msg_ok %}✅{% else %}⚠️{% endif %}</span><span>{{ msg }}</span>
+  </div>
+  {% endif %}
+
+  <div class="dec-import-box">
+    <h3>📥 Importar planilha de metas (Plano de Metas)</h3>
+    <p>Envie a planilha com as metas já preenchidas. Selecione o mês de referência —
+       o sistema lê todas as unidades de uma vez e atualiza as metas de cada uma.<br>
+       A cada 10 dias você reimporta a mesma planilha (atualizada) escolhendo o mês.</p>
+    <form class="dec-import-form" method="POST" action="/decendial/importar" enctype="multipart/form-data">
+      <select name="mes" required>
+        {% for mid,mlabel in meses %}<option value="{{ mid }}" {{ 'selected' if mid==mes_sel else '' }}>{{ mlabel }}</option>{% endfor %}
+      </select>
+      <input type="file" name="planilha" accept=".xlsx,.xlsm" required>
+      <button type="submit" class="btn-import-big">📊 Importar metas</button>
+    </form>
+    <div class="dec-progress">📋 {{ com_metas|length }} de {{ unidades|length }} unidades com metas importadas</div>
+  </div>
+
   <div class="dec-toolbar">
-    <span class="flabel">Selecione a unidade:</span>
+    <span class="flabel">Ver metas da unidade:</span>
     <select class="dec-unidade-sel" onchange="window.location='/decendial?u='+encodeURIComponent(this.value)">
       {% for nome in unidades %}
-      <option value="{{ nome }}" {{ 'selected' if nome==unidade_sel else '' }}>{{ nome }}{{ '  ⚠️ (fora do VF)' if nome not in no_vf else ('  ✓ salva' if nome in com_metas else '') }}</option>
+      <option value="{{ nome }}" {{ 'selected' if nome==unidade_sel else '' }}>{{ nome }}{{ '  ⚠️ (fora do VF)' if nome not in no_vf else ('  ✓ importada' if nome in com_metas else '  — sem metas') }}</option>
       {% endfor %}
     </select>
-    {% if msg %}<span class="smsg {{ 'ok' if msg_ok else 'err' }}">{{ msg }}</span>{% endif %}
     <div style="flex:1"></div>
+    {% if unidade_sel in com_metas %}
     <a href="/decendial/pdf?u={{ unidade_sel|urlencode }}" target="_blank" class="btn btn-blue">⬇ PDF</a>
     <a href="/decendial/excel?u={{ unidade_sel|urlencode }}" class="btn btn-green">⬇ Excel</a>
+    {% endif %}
   </div>
+
   {% if unidade_sel not in no_vf %}
   <div class="dec-banner err" style="margin-bottom:18px">
     <span class="db-ico">⚠️</span>
-    <span>A unidade <strong>{{ unidade_sel }}</strong> não aparece no VF do fechamento atual, então o acompanhamento decendial não conseguirá compará-la. Você pode cadastrar as metas, mas o "Exportar VF" só gera resultado para unidades que constam no VF.</span>
+    <span>A unidade <strong>{{ unidade_sel }}</strong> não aparece no VF do fechamento atual, então o acompanhamento decendial não conseguirá compará-la.</span>
   </div>
   {% endif %}
-  <form method="POST" action="/decendial/salvar">
-  <input type="hidden" name="unidade" value="{{ unidade_sel }}">
+
   <div class="dec-card">
     <div class="dec-card-h">
-      <div><h3>🎯 {{ unidade_sel }}</h3><div class="sub">Metas do mês — preencha uma vez; ficam salvas para o acompanhamento decendial</div></div>
-      {% if unidade_sel in com_metas %}<span class="sbadge" style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4)">✓ Metas salvas</span>{% endif %}
+      <div><h3>🎯 {{ unidade_sel }}</h3><div class="sub">Metas do mês (importadas da planilha) — usadas no acompanhamento decendial e no Fechamento Mensal</div></div>
+      {% if unidade_sel in com_metas %}<span class="sbadge" style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4)">✓ Metas importadas</span>{% endif %}
     </div>
+    {% if unidade_sel in com_metas %}
     <table class="metas-table">
       <thead><tr>
-        <th>% Atingido</th><th>Mês Anterior</th><th>Meta Mês</th><th>Quantidade</th><th>Valor</th>
+        <th>Discriminação</th><th>Mês Anterior</th><th>Meta Mês</th><th>Quantidade</th><th>Valor</th>
       </tr></thead>
       <tbody>
       {% for l in linhas %}
+        {% set d = metas.get(l.id,{}) %}
         <tr>
           <td class="lbl">{{ l.label }}</td>
-          <td><input type="text" name="{{ l.id }}__mes_anterior" value="{{ metas.get(l.id,{}).get('mes_anterior','') }}" placeholder="0" inputmode="decimal"></td>
-          <td><input type="text" name="{{ l.id }}__meta_mes" value="{{ metas.get(l.id,{}).get('meta_mes','') }}" placeholder="0" inputmode="decimal"></td>
-          <td><input type="text" name="{{ l.id }}__quantidade" value="{{ metas.get(l.id,{}).get('quantidade','') }}" placeholder="0" inputmode="decimal"></td>
-          <td><input type="text" name="{{ l.id }}__valor" value="{{ metas.get(l.id,{}).get('valor','') }}" placeholder="0,00" inputmode="decimal"></td>
+          <td>{{ d.get('mes_anterior','—') }}</td>
+          <td>{{ d.get('meta_mes','—') }}</td>
+          <td>{{ d.get('quantidade','—') }}</td>
+          <td>{{ d.get('valor','—') }}</td>
         </tr>
       {% endfor %}
       </tbody>
@@ -1511,15 +1725,20 @@ __NAV__
       <span class="dec-total-l">Total Recebido</span>
       <span class="dec-total-v">{{ total_receb|brl }}</span>
     </div>
+    {% else %}
+    <div class="dec-empty" style="padding:36px 20px">
+      <div class="ico">📭</div>
+      <p>Esta unidade ainda não tem metas importadas. Envie a planilha de metas acima escolhendo o mês.</p>
+    </div>
+    {% endif %}
   </div>
+
   <div class="dec-actions">
-    <button type="submit" class="btn btn-red">💾 Salvar metas desta unidade</button>
     <a href="/decendial/limpar?u={{ unidade_sel|urlencode }}" class="btn btn-clear"
-       onclick="return confirm('Limpar TODOS os campos desta unidade?')">🗑️ Limpar campos</a>
+       onclick="return confirm('Limpar as metas desta unidade?')">🗑️ Limpar esta unidade</a>
     <a href="/decendial/limpar_tudo" class="btn btn-clear"
-       onclick="return confirm('Limpar os campos de TODAS as unidades? Esta ação não pode ser desfeita.')">🗑️ Limpar tudo (todas unidades)</a>
+       onclick="return confirm('Limpar as metas de TODAS as unidades? Esta ação não pode ser desfeita.')">🗑️ Limpar tudo (todas unidades)</a>
   </div>
-  </form>
 {% endif %}
 </div>
 </body></html>
@@ -1530,35 +1749,47 @@ def decendial():
     nomes = dec_unidades()
     # prioriza abrir numa unidade que esteja no VF (evita cair na Arapiraca por padrão)
     no_vf = unidades_no_vf()
-    default = next((n for n in nomes if n in no_vf), (nomes[0] if nomes else ""))
+    com_metas = set(_dec["metas"].keys())
+    default = next((n for n in nomes if n in com_metas), next((n for n in nomes if n in no_vf), (nomes[0] if nomes else "")))
     unidade_sel = request.args.get("u") or default
     metas = metas_da_unidade(unidade_sel)
-    com_metas = set(_dec["metas"].keys())
+    mes_sel = request.args.get("mes") or _dec.get("ultimo_mes","5")
     html = DEC_METAS_TEMPLATE.replace("__CSS__",CSS+CSS_DEC).replace("__NAV__",dec_nav("metas"))
     return render_template_string(html, unidades=nomes, unidade_sel=unidade_sel,
         linhas=LINHAS_DEC, metas=metas, total_receb=total_recebido(unidade_sel),
-        no_vf=no_vf, com_metas=com_metas,
+        no_vf=no_vf, com_metas=com_metas, meses=MESES_DEC, mes_sel=mes_sel,
         msg=request.args.get("msg",""), msg_ok=request.args.get("ok","1")=="1")
 
-@app.route("/decendial/salvar", methods=["POST"])
-def decendial_salvar():
-    nome = request.form.get("unidade","").strip()
-    if not nome: return redirect("/decendial?msg=Selecione+uma+unidade&ok=0")
-    bloco = {}
-    for l in LINHAS_DEC:
-        d={}
-        for c in CAMPOS_DEC:
-            v = request.form.get(f"{l['id']}__{c}","").strip()
-            if v: d[c]=v
-        if d: bloco[l["id"]]=d
-    _dec["metas"][nome]=bloco
+@app.route("/decendial/importar", methods=["POST"])
+def decendial_importar():
+    mes = request.form.get("mes","").strip()
+    arq = request.files.get("planilha")
+    if mes not in [m[0] for m in MESES_DEC]:
+        return redirect("/decendial?msg=Selecione+o+mês+de+referência&ok=0")
+    if not arq or not arq.filename:
+        return redirect("/decendial?msg=Escolha+a+planilha+de+metas+(.xlsx)&ok=0")
+    if not arq.filename.lower().endswith((".xlsx",".xlsm")):
+        return redirect("/decendial?msg=A+planilha+deve+ser+.xlsx&ok=0")
+    try:
+        metas_uni, lidas, _ = parse_plano_metas(arq.read(), int(mes))
+    except Exception as e:
+        traceback.print_exc()
+        return redirect(f"/decendial?msg=Erro+ao+ler+planilha:+{str(e)[:90]}&ok=0")
+    if not metas_uni:
+        return redirect("/decendial?msg=Não+encontrei+metas+nessa+planilha+para+o+mês+escolhido&ok=0")
+    aplicadas, nao_casadas = aplicar_metas_importadas(metas_uni)
+    _dec["ultimo_mes"]=mes
+    _dec["import_mes"]=mes
     salvar_dec_disco()
-    # recalcula o score do fechamento com as novas metas (se já houver dados)
-    data,per,fn = get_cached_data()
-    if data:
-        for u in data:
-            if u["nome"]==nome: calcular_score(u)
-    return redirect(f"/decendial?u={nome}&msg=✅+Metas+salvas&ok=1")
+    mlabel = next(m[1] for m in MESES_DEC if m[0]==mes)
+    if not aplicadas:
+        nn = ", ".join(nao_casadas[:6])
+        return redirect(f"/decendial?msg=Li+as+metas+de+{mlabel}+mas+nenhuma+unidade+casou+com+o+sistema+({nn})&ok=0")
+    msg = f"✅+{mlabel}:+metas+importadas+para+{len(aplicadas)}+unidade(s)"
+    if nao_casadas:
+        nn = ",+".join(nao_casadas[:5])
+        msg += f".+Não+casaram:+{nn}"
+    return redirect(f"/decendial?mes={mes}&msg={msg}&ok=1")
 
 @app.route("/decendial/limpar", methods=["GET"])
 def decendial_limpar():
@@ -1575,11 +1806,14 @@ def decendial_limpar():
 def decendial_limpar_tudo():
     _dec["metas"].clear()
     _dec["resultados"].clear()
+    _dec["import_raw"] = {}
+    _dec["import_mes"] = ""
+    _dec["ultimo_mes"] = ""
     salvar_dec_disco()
     data,_,_=get_cached_data()
     if data:
         for u in data: calcular_score(u)
-    return redirect("/decendial?msg=Todos+os+campos+foram+limpos&ok=1")
+    return redirect("/decendial?msg=Todas+as+metas+foram+removidas&ok=1")
 
 # ═════════════════════════════════════════════════════════════
 # DECENDIAL — % atingido para uma linha (Valor / Meta-em-Valor)
@@ -1804,11 +2038,11 @@ def decendial_exportar_vf():
         v = vf_dados.get(chave)
         if not v:
             sem_match.append(nome); continue
-        # mapeia campos do VF para as linhas do formulário
+        # mapeia campos do VF para as linhas do formulário (realizado nos 10 dias)
         realizado = {
-            "matricula":      v["fat_comercial"],   # valor comercial realizado
-            "proj_comercial": v["fat_comercial"],
-            "atual":          v["fin_atual"]*100,
+            "matricula":      v["matriculas"],      # contagem de matrículas (meta é qtd)
+            "proj_comercial": v["fat_comercial"],   # faturamento comercial realizado
+            "atual":          v["fin_atual"]*100,    # % cobrança atual
             "d30":            v["fin_30"]*100,
             "d60":            v["fin_60"]*100,
             "cancelamentos":  v["cancelados"],
@@ -1956,3 +2190,4 @@ def decendial_resultado_pdf():
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0",port=port,debug=False)
+    

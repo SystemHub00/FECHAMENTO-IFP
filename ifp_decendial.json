@@ -1,0 +1,1807 @@
+{
+  "metas": {
+    "IFP - Águas Lindas": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "110",
+        "valor": "22000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "151879,99",
+        "valor": "142767,19"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "15974,66",
+        "valor": "7188,60"
+      },
+      "d60": {
+        "meta_mes": "30",
+        "quantidade": "15366,96",
+        "valor": "4610,09"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "184,99",
+        "quantidade": "184,99"
+      },
+      "qtd_parcelas": {
+        "valor": "821",
+        "quantidade": "821"
+      }
+    },
+    "IFP - Cajazeiras": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "81716,62",
+        "valor": "76813,62"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "9821,03",
+        "valor": "4419,46"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4299,23",
+        "valor": "859,85"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "182,00",
+        "quantidade": "182,00"
+      },
+      "qtd_parcelas": {
+        "valor": "449",
+        "quantidade": "449"
+      }
+    },
+    "IFP - Campina Grande": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "80",
+        "valor": "16000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "66212,20",
+        "valor": "62239,47"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "3438,18",
+        "valor": "1203,36"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "3291,85",
+        "valor": "658,37"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "194,17",
+        "quantidade": "194,17"
+      },
+      "qtd_parcelas": {
+        "valor": "341",
+        "quantidade": "341"
+      }
+    },
+    "IFP - Canaã": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "122419,47",
+        "valor": "115074,30"
+      },
+      "d30": {
+        "meta_mes": "38",
+        "quantidade": "8847,61",
+        "valor": "3362,09"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "3627,36",
+        "valor": "725,47"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "226,28",
+        "quantidade": "226,28"
+      },
+      "qtd_parcelas": {
+        "valor": "541",
+        "quantidade": "541"
+      }
+    },
+    "IFP - Cariacica": {
+      "matricula": {
+        "meta_mes": "250",
+        "quantidade": "90",
+        "valor": "22500"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "81426,23",
+        "valor": "76540,66"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "9565,52",
+        "valor": "3347,93"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "3948,29",
+        "valor": "987,07"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "parc_antecip": {
+        "meta_mes": "5000",
+        "quantidade": "5000",
+        "valor": "5000"
+      },
+      "ticket_parcela": {
+        "valor": "191,59",
+        "quantidade": "191,59"
+      },
+      "qtd_parcelas": {
+        "valor": "425",
+        "quantidade": "425"
+      }
+    },
+    "IFP - Caruaru": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "64850,10",
+        "valor": "60959,09"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "3597,67",
+        "valor": "1259,18"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "2812,58",
+        "valor": "562,52"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "191,86",
+        "quantidade": "191,86"
+      },
+      "qtd_parcelas": {
+        "valor": "338",
+        "quantidade": "338"
+      }
+    },
+    "IFP - Ceilândia": {
+      "matricula": {
+        "meta_mes": "249",
+        "quantidade": "75",
+        "valor": "18675"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "60704",
+        "valor": "57061,76"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "6186,28",
+        "valor": "2165,20"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "3874,22",
+        "valor": "968,55"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "ticket_parcela": {
+        "valor": "181,21",
+        "quantidade": "181,21"
+      },
+      "qtd_parcelas": {
+        "valor": "335",
+        "quantidade": "335"
+      }
+    },
+    "IFP - Duque de Caxias": {
+      "matricula": {
+        "meta_mes": "250",
+        "quantidade": "100",
+        "valor": "25000"
+      },
+      "atual": {
+        "meta_mes": "90",
+        "quantidade": "76376,91",
+        "valor": "68739,22"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "13295,25",
+        "valor": "5982,86"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "11624,28",
+        "valor": "2906,07"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "191,90",
+        "quantidade": "191,90"
+      },
+      "qtd_parcelas": {
+        "valor": "398",
+        "quantidade": "398"
+      }
+    },
+    "IFP - João Pessoa": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "93",
+        "quantidade": "70697,39",
+        "valor": "65748,57"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "10064,71",
+        "valor": "4529,12"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4310,62",
+        "valor": "862,12"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "187,53",
+        "quantidade": "187,53"
+      },
+      "qtd_parcelas": {
+        "valor": "377",
+        "quantidade": "377"
+      }
+    },
+    "IFP - Luziânia": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "80",
+        "valor": "16000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "84001,55",
+        "valor": "78961,46"
+      },
+      "d30": {
+        "meta_mes": "40",
+        "quantidade": "9144,51",
+        "valor": "3657,80"
+      },
+      "d60": {
+        "meta_mes": "15",
+        "quantidade": "2947,73",
+        "valor": "442,16"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "172,49",
+        "quantidade": "172,49"
+      },
+      "qtd_parcelas": {
+        "valor": "487",
+        "quantidade": "487"
+      }
+    },
+    "IFP - Madureira": {
+      "matricula": {
+        "meta_mes": "250",
+        "quantidade": "100",
+        "valor": "25000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "99067,37",
+        "valor": "93123,33"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "6623,36",
+        "valor": "2318,18"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "21318,19",
+        "valor": "5329,55"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "176,59",
+        "quantidade": "176,59"
+      },
+      "qtd_parcelas": {
+        "valor": "561",
+        "quantidade": "561"
+      }
+    },
+    "IFP - Manaus": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "92",
+        "quantidade": "62735",
+        "valor": "57716,20"
+      },
+      "d30": {
+        "meta_mes": "20",
+        "quantidade": "5343,06",
+        "valor": "1068,61"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "9699,14",
+        "valor": "1939,83"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "209,12",
+        "quantidade": "209,12"
+      },
+      "qtd_parcelas": {
+        "valor": "300",
+        "quantidade": "300"
+      }
+    },
+    "IFP - Marabá": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "99699,26",
+        "valor": "93717,30"
+      },
+      "d30": {
+        "meta_mes": "38",
+        "quantidade": "6644,25",
+        "valor": "2524,82"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4281,07",
+        "valor": "856,21"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "208,58",
+        "quantidade": "208,58"
+      },
+      "qtd_parcelas": {
+        "valor": "478",
+        "quantidade": "478"
+      }
+    },
+    "IFP - Paranoá": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "116505,32",
+        "valor": "109515,00"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "7294,33",
+        "valor": "2553,02"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4649,96",
+        "valor": "929,99"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "184,34",
+        "quantidade": "184,34"
+      },
+      "qtd_parcelas": {
+        "valor": "632",
+        "quantidade": "632"
+      }
+    },
+    "IFP - Parauapebas": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "120",
+        "valor": "24000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "165420,96",
+        "valor": "155495,70"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "12990,35",
+        "valor": "5845,66"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "7307,94",
+        "valor": "1461,59"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "206,78",
+        "quantidade": "206,78"
+      },
+      "qtd_parcelas": {
+        "valor": "800",
+        "quantidade": "800"
+      }
+    },
+    "IFP - Planaltina DF": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "85",
+        "valor": "17000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "68234,06",
+        "valor": "64140,02"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "8625,52",
+        "valor": "3881,48"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "2848,55",
+        "valor": "712,14"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "180,99",
+        "quantidade": "180,99"
+      },
+      "qtd_parcelas": {
+        "valor": "377",
+        "quantidade": "377"
+      }
+    },
+    "IFP - Planaltina GO": {
+      "matricula": {
+        "meta_mes": "249",
+        "quantidade": "75",
+        "valor": "18675"
+      },
+      "atual": {
+        "meta_mes": "93",
+        "quantidade": "77622,09",
+        "valor": "72188,54"
+      },
+      "d30": {
+        "meta_mes": "40",
+        "quantidade": "10928,49",
+        "valor": "4371,40"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "3741,52",
+        "valor": "748,30"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "parc_antecip": {
+        "meta_mes": "10000",
+        "quantidade": "10000",
+        "valor": "10000"
+      },
+      "ticket_parcela": {
+        "valor": "178,03",
+        "quantidade": "178,03"
+      },
+      "qtd_parcelas": {
+        "valor": "436",
+        "quantidade": "436"
+      }
+    },
+    "IFP - São Luís": {
+      "matricula": {
+        "meta_mes": "160",
+        "quantidade": "130",
+        "valor": "20800"
+      },
+      "atual": {
+        "meta_mes": "92",
+        "quantidade": "122616,57",
+        "valor": "112807,24"
+      },
+      "d30": {
+        "meta_mes": "30",
+        "quantidade": "20825,59",
+        "valor": "6247,68"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "15314,24",
+        "valor": "3828,56"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "9000",
+        "quantidade": "9000",
+        "valor": "9000"
+      },
+      "ticket_parcela": {
+        "valor": "187,20",
+        "quantidade": "187,20"
+      },
+      "qtd_parcelas": {
+        "valor": "655",
+        "quantidade": "655"
+      }
+    },
+    "IFP - São Sebastião": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "127055,16",
+        "valor": "119431,85"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "13258,31",
+        "valor": "5966,24"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "8036,19",
+        "valor": "2009,05"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "182,55",
+        "quantidade": "182,55"
+      },
+      "qtd_parcelas": {
+        "valor": "696",
+        "quantidade": "696"
+      }
+    },
+    "IFP - Serra": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "90",
+        "quantidade": "76978,51",
+        "valor": "69280,66"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "15555,16",
+        "valor": "6999,82"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "6246,06",
+        "valor": "1249,21"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "191,97",
+        "quantidade": "191,97"
+      },
+      "qtd_parcelas": {
+        "valor": "401",
+        "quantidade": "401"
+      }
+    },
+    "IFPA - Taguatinga": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "93",
+        "quantidade": "93816,75",
+        "valor": "87249,58"
+      },
+      "d30": {
+        "meta_mes": "40",
+        "quantidade": "6399,60",
+        "valor": "2559,84"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "6816,58",
+        "valor": "1363,32"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      }
+    },
+    "IFP - Valparaíso": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "80",
+        "valor": "16000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "76018,88",
+        "valor": "71457,75"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "4724,26",
+        "valor": "1653,49"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "3999,72",
+        "valor": "999,93"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "170,06",
+        "quantidade": "170,06"
+      },
+      "qtd_parcelas": {
+        "valor": "447",
+        "quantidade": "447"
+      }
+    }
+  },
+  "resultados": {},
+  "unidades": [
+    "IFP - Arapiraca",
+    "IFP - Cajazeiras",
+    "IFP - Camaçari",
+    "IFP - Campina Grande",
+    "IFP - Canaã",
+    "IFP - Cariacica",
+    "IFP - Caruaru",
+    "IFP - Ceilândia",
+    "IFP - Duque de Caxias",
+    "IFP - Formosa",
+    "IFP - Gama",
+    "IFP - João Pessoa",
+    "IFP - Luziânia",
+    "IFP - Madureira",
+    "IFP - Manaus",
+    "IFP - Marabá",
+    "IFP - Paranoá",
+    "IFP - Parauapebas",
+    "IFP - Planaltina DF",
+    "IFP - Planaltina GO",
+    "IFP - Recanto das Emas",
+    "IFP - Ribeirão das Neves",
+    "IFP - Serra",
+    "IFP - São Luís",
+    "IFP - São Sebastião",
+    "IFP - Uberlândia",
+    "IFP - Valparaíso",
+    "IFP - Águas Lindas",
+    "IFPA - Anápolis",
+    "IFPA - Goiânia",
+    "IFPA - Novo Gama",
+    "IFPA - Taguatinga"
+  ],
+  "ultimo_mes": "5",
+  "import_raw": {
+    "Aguas LindasGO": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "110",
+        "valor": "22000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "151879,99",
+        "valor": "142767,19"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "15974,66",
+        "valor": "7188,60"
+      },
+      "d60": {
+        "meta_mes": "30",
+        "quantidade": "15366,96",
+        "valor": "4610,09"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "184,99",
+        "quantidade": "184,99"
+      },
+      "qtd_parcelas": {
+        "valor": "821",
+        "quantidade": "821"
+      }
+    },
+    "CajazeirasPB": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "81716,62",
+        "valor": "76813,62"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "9821,03",
+        "valor": "4419,46"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4299,23",
+        "valor": "859,85"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "182,00",
+        "quantidade": "182,00"
+      },
+      "qtd_parcelas": {
+        "valor": "449",
+        "quantidade": "449"
+      }
+    },
+    "Campina GrandePB": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "80",
+        "valor": "16000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "66212,20",
+        "valor": "62239,47"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "3438,18",
+        "valor": "1203,36"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "3291,85",
+        "valor": "658,37"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "194,17",
+        "quantidade": "194,17"
+      },
+      "qtd_parcelas": {
+        "valor": "341",
+        "quantidade": "341"
+      }
+    },
+    "Canaa dos CarajasPA": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "122419,47",
+        "valor": "115074,30"
+      },
+      "d30": {
+        "meta_mes": "38",
+        "quantidade": "8847,61",
+        "valor": "3362,09"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "3627,36",
+        "valor": "725,47"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "226,28",
+        "quantidade": "226,28"
+      },
+      "qtd_parcelas": {
+        "valor": "541",
+        "quantidade": "541"
+      }
+    },
+    "CariacicaES": {
+      "matricula": {
+        "meta_mes": "250",
+        "quantidade": "90",
+        "valor": "22500"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "81426,23",
+        "valor": "76540,66"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "9565,52",
+        "valor": "3347,93"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "3948,29",
+        "valor": "987,07"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "parc_antecip": {
+        "meta_mes": "5000",
+        "quantidade": "5000",
+        "valor": "5000"
+      },
+      "ticket_parcela": {
+        "valor": "191,59",
+        "quantidade": "191,59"
+      },
+      "qtd_parcelas": {
+        "valor": "425",
+        "quantidade": "425"
+      }
+    },
+    "CaruaruPE": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "64850,10",
+        "valor": "60959,09"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "3597,67",
+        "valor": "1259,18"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "2812,58",
+        "valor": "562,52"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "191,86",
+        "quantidade": "191,86"
+      },
+      "qtd_parcelas": {
+        "valor": "338",
+        "quantidade": "338"
+      }
+    },
+    "CeilandiaDF": {
+      "matricula": {
+        "meta_mes": "249",
+        "quantidade": "75",
+        "valor": "18675"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "60704",
+        "valor": "57061,76"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "6186,28",
+        "valor": "2165,20"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "3874,22",
+        "valor": "968,55"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "ticket_parcela": {
+        "valor": "181,21",
+        "quantidade": "181,21"
+      },
+      "qtd_parcelas": {
+        "valor": "335",
+        "quantidade": "335"
+      }
+    },
+    "Duque de CaxiasRJ": {
+      "matricula": {
+        "meta_mes": "250",
+        "quantidade": "100",
+        "valor": "25000"
+      },
+      "atual": {
+        "meta_mes": "90",
+        "quantidade": "76376,91",
+        "valor": "68739,22"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "13295,25",
+        "valor": "5982,86"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "11624,28",
+        "valor": "2906,07"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "191,90",
+        "quantidade": "191,90"
+      },
+      "qtd_parcelas": {
+        "valor": "398",
+        "quantidade": "398"
+      }
+    },
+    "Joao PessoaPB": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "93",
+        "quantidade": "70697,39",
+        "valor": "65748,57"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "10064,71",
+        "valor": "4529,12"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4310,62",
+        "valor": "862,12"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "187,53",
+        "quantidade": "187,53"
+      },
+      "qtd_parcelas": {
+        "valor": "377",
+        "quantidade": "377"
+      }
+    },
+    "LuzianiaGO": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "80",
+        "valor": "16000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "84001,55",
+        "valor": "78961,46"
+      },
+      "d30": {
+        "meta_mes": "40",
+        "quantidade": "9144,51",
+        "valor": "3657,80"
+      },
+      "d60": {
+        "meta_mes": "15",
+        "quantidade": "2947,73",
+        "valor": "442,16"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "172,49",
+        "quantidade": "172,49"
+      },
+      "qtd_parcelas": {
+        "valor": "487",
+        "quantidade": "487"
+      }
+    },
+    "MadureiraRJ": {
+      "matricula": {
+        "meta_mes": "250",
+        "quantidade": "100",
+        "valor": "25000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "99067,37",
+        "valor": "93123,33"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "6623,36",
+        "valor": "2318,18"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "21318,19",
+        "valor": "5329,55"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "176,59",
+        "quantidade": "176,59"
+      },
+      "qtd_parcelas": {
+        "valor": "561",
+        "quantidade": "561"
+      }
+    },
+    "ManausAM": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "92",
+        "quantidade": "62735",
+        "valor": "57716,20"
+      },
+      "d30": {
+        "meta_mes": "20",
+        "quantidade": "5343,06",
+        "valor": "1068,61"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "9699,14",
+        "valor": "1939,83"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "ticket_parcela": {
+        "valor": "209,12",
+        "quantidade": "209,12"
+      },
+      "qtd_parcelas": {
+        "valor": "300",
+        "quantidade": "300"
+      }
+    },
+    "MarabaPA": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "99699,26",
+        "valor": "93717,30"
+      },
+      "d30": {
+        "meta_mes": "38",
+        "quantidade": "6644,25",
+        "valor": "2524,82"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4281,07",
+        "valor": "856,21"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "208,58",
+        "quantidade": "208,58"
+      },
+      "qtd_parcelas": {
+        "valor": "478",
+        "quantidade": "478"
+      }
+    },
+    "ParanoaDF": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "116505,32",
+        "valor": "109515,00"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "7294,33",
+        "valor": "2553,02"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "4649,96",
+        "valor": "929,99"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "184,34",
+        "quantidade": "184,34"
+      },
+      "qtd_parcelas": {
+        "valor": "632",
+        "quantidade": "632"
+      }
+    },
+    "ParauapebasPA": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "120",
+        "valor": "24000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "165420,96",
+        "valor": "155495,70"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "12990,35",
+        "valor": "5845,66"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "7307,94",
+        "valor": "1461,59"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "206,78",
+        "quantidade": "206,78"
+      },
+      "qtd_parcelas": {
+        "valor": "800",
+        "quantidade": "800"
+      }
+    },
+    "PlanaltinaDF": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "85",
+        "valor": "17000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "68234,06",
+        "valor": "64140,02"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "8625,52",
+        "valor": "3881,48"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "2848,55",
+        "valor": "712,14"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "180,99",
+        "quantidade": "180,99"
+      },
+      "qtd_parcelas": {
+        "valor": "377",
+        "quantidade": "377"
+      }
+    },
+    "PlanaltinaGO": {
+      "matricula": {
+        "meta_mes": "249",
+        "quantidade": "75",
+        "valor": "18675"
+      },
+      "atual": {
+        "meta_mes": "93",
+        "quantidade": "77622,09",
+        "valor": "72188,54"
+      },
+      "d30": {
+        "meta_mes": "40",
+        "quantidade": "10928,49",
+        "valor": "4371,40"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "3741,52",
+        "valor": "748,30"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "parc_antecip": {
+        "meta_mes": "10000",
+        "quantidade": "10000",
+        "valor": "10000"
+      },
+      "ticket_parcela": {
+        "valor": "178,03",
+        "quantidade": "178,03"
+      },
+      "qtd_parcelas": {
+        "valor": "436",
+        "quantidade": "436"
+      }
+    },
+    "Sao LuisMA": {
+      "matricula": {
+        "meta_mes": "160",
+        "quantidade": "130",
+        "valor": "20800"
+      },
+      "atual": {
+        "meta_mes": "92",
+        "quantidade": "122616,57",
+        "valor": "112807,24"
+      },
+      "d30": {
+        "meta_mes": "30",
+        "quantidade": "20825,59",
+        "valor": "6247,68"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "15314,24",
+        "valor": "3828,56"
+      },
+      "scpc": {
+        "meta_mes": "2000",
+        "quantidade": "2000",
+        "valor": "2000"
+      },
+      "cancelamentos": {
+        "meta_mes": "9000",
+        "quantidade": "9000",
+        "valor": "9000"
+      },
+      "ticket_parcela": {
+        "valor": "187,20",
+        "quantidade": "187,20"
+      },
+      "qtd_parcelas": {
+        "valor": "655",
+        "quantidade": "655"
+      }
+    },
+    "Sao SebastiaoDF": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "100",
+        "valor": "20000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "127055,16",
+        "valor": "119431,85"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "13258,31",
+        "valor": "5966,24"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "8036,19",
+        "valor": "2009,05"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "182,55",
+        "quantidade": "182,55"
+      },
+      "qtd_parcelas": {
+        "valor": "696",
+        "quantidade": "696"
+      }
+    },
+    "SerraES": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "90",
+        "quantidade": "76978,51",
+        "valor": "69280,66"
+      },
+      "d30": {
+        "meta_mes": "45",
+        "quantidade": "15555,16",
+        "valor": "6999,82"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "6246,06",
+        "valor": "1249,21"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "191,97",
+        "quantidade": "191,97"
+      },
+      "qtd_parcelas": {
+        "valor": "401",
+        "quantidade": "401"
+      }
+    },
+    "TaguatingaDF": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "90",
+        "valor": "18000"
+      },
+      "atual": {
+        "meta_mes": "93",
+        "quantidade": "93816,75",
+        "valor": "87249,58"
+      },
+      "d30": {
+        "meta_mes": "40",
+        "quantidade": "6399,60",
+        "valor": "2559,84"
+      },
+      "d60": {
+        "meta_mes": "20",
+        "quantidade": "6816,58",
+        "valor": "1363,32"
+      },
+      "scpc": {
+        "meta_mes": "3000",
+        "quantidade": "3000",
+        "valor": "3000"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      }
+    },
+    "ValparaisoGO": {
+      "matricula": {
+        "meta_mes": "200",
+        "quantidade": "80",
+        "valor": "16000"
+      },
+      "atual": {
+        "meta_mes": "94",
+        "quantidade": "76018,88",
+        "valor": "71457,75"
+      },
+      "d30": {
+        "meta_mes": "35",
+        "quantidade": "4724,26",
+        "valor": "1653,49"
+      },
+      "d60": {
+        "meta_mes": "25",
+        "quantidade": "3999,72",
+        "valor": "999,93"
+      },
+      "scpc": {
+        "meta_mes": "2500",
+        "quantidade": "2500",
+        "valor": "2500"
+      },
+      "cancelamentos": {
+        "meta_mes": "4000",
+        "quantidade": "4000",
+        "valor": "4000"
+      },
+      "ticket_parcela": {
+        "valor": "170,06",
+        "quantidade": "170,06"
+      },
+      "qtd_parcelas": {
+        "valor": "447",
+        "quantidade": "447"
+      }
+    }
+  },
+  "import_mes": "5"
+}
